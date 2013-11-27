@@ -7,20 +7,19 @@ DROP TABLE IF EXISTS actuator;
         
 -- Sensors & Actuators
 
-CREATE TABLE actuator (
+CREATE TABLE Actuators (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        type INTEGER
+        type VARCHAR(32)
 );
 CREATE TABLE sensor (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        type INTEGER,
-        isGlobal BOOLEAN
+        type VARCHAR(32)
 );
 
-CREATE TABLE measure (
+CREATE TABLE Measures (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sensorId INTEGER,
-        time BIGINT,
+        time DATETIME,
         measureType INTEGER,
         value REAL,
         FOREIGN KEY (sensorId) REFERENCES sensor (id)
@@ -28,13 +27,13 @@ CREATE TABLE measure (
 
 -- Inference Engine
 
-CREATE TABLE rule (
+CREATE TABLE Rules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name VARCHAR(32),
         UNIQUE(name)
 );
 
-CREATE TABLE sensorRule (
+CREATE TABLE SensorRules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ruleId INTEGER,
         sensorId INTEGER,
@@ -45,7 +44,7 @@ CREATE TABLE sensorRule (
         FOREIGN KEY (sensorId) REFERENCES sensor (id)
 );
 
-CREATE TABLE actuatorRule (
+CREATE TABLE ActuatorRules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ruleId INTEGER,
         actuatorId INTEGER,
