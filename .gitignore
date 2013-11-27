@@ -6,3 +6,4 @@ lib-cov
 *.out
 *.pid
 *.gz
+*.db
