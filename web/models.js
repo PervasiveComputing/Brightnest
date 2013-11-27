@@ -17,17 +17,28 @@ var sequelize = new Sequelize('brightnest', 'username', 'password', {
   storage: 'brightnest.db'
 })
 
-// var User = sequelize.import(path.join(__dirname,'user'));
-// var UserContent = sequelize.import(path.join(__dirname,'user_content'));
-// var Authorized = sequelize.import(path.join(__dirname,'authorized'));
-// 
-// //Relations
-// User.hasMany(UserContent,{foreignKey: 'userID'});
-// UserContent.belongsTo(User, {foreignKey: 'userID'});
-// UserContent.hasMany(Authorized,{as: 'content', foreignKey: 'contentID'});
-// Authorized.belongsTo(UserContent, {as: 'content', foreignKey: 'contentID'});
-// 
-// exports.User = User;
-// exports.UserContent = UserContent;
-// exports.Authorized = Authorized;
+// Models:
+var Sensor = sequelize.import(path.join(__dirname,'model/sensor'));
+var Actuator = sequelize.import(path.join(__dirname,'model/actuator'));
+var Measure = sequelize.import(path.join(__dirname,'model/measure'));
+var Rule = sequelize.import(path.join(__dirname,'model/rule'));
+var ActuatorRule = sequelize.import(path.join(__dirname,'model/actuatorRule'));
+var SensorRule = sequelize.import(path.join(__dirname,'model/sensorRule'));
+
+//Relations:
+Sensor.hasMany(Measure,{as: 'measures', foreignKey: 'sensorId'});
+
+Sensor.hasMany(SensorRule,{as: 'rules', foreignKey: 'sensorId'});
+Actuator.hasMany(ActuatorRule,{as: 'rules', foreignKey: 'actuatorId'});
+
+Rule.hasMany(SensorRule,{as: 'sensorRules', foreignKey: 'ruleId'});
+Rule.hasMany(ActuatorRule,{as: 'actuatorRules', foreignKey: 'ruleId'});
+
+
+exports.Sensor = Sensor;
+exports.Actuator = Actuator;
+exports.Measure = Measure;
+exports.Rule = Rule;
+exports.ActuatorRule = ActuatorRule;
+exports.SensorRule = SensorRule;
 sequelize.sync();
