@@ -75,7 +75,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 							cb(null, sensor.id);
 						});
 				})
-				.error(function() {
+				.error(function(err) {
 					cb(err, null);
 				});
 			
@@ -117,14 +117,14 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		if (limit) {
 			models.Sensor.findAll({ offset: offset, limit: limit, raw: true })
 				.success(function(ans){cb(null, ans);})
-				.error(function() {
+				.error(function(err) {
 					cb(err, null);
 				});
 		}
 		else {
 			models.Sensor.findAll({ offset: offset, raw: true })
 				.success(function(ans){cb(null, ans);})
-				.error(function() {
+				.error(function(err) {
 					cb(err, null);
 				});
 		}
@@ -167,7 +167,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	function getSensor(id, cb) {
 		models.Sensor.find(id)
 			.success(function(ans){cb(null, ans);})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -203,7 +203,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function(sensor){
 				cb(null, sensor.type);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -239,7 +239,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function(sensor){
 				cb(null, sensor.customId);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 			
@@ -276,7 +276,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, false);
 			});
 	}
@@ -314,7 +314,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -353,7 +353,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -390,7 +390,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -442,7 +442,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 							cb(null, actuator.id);
 						});
 				})
-				.error(function() {
+				.error(function(err) {
 					cb(err, 'nok');
 				});
 			
@@ -484,14 +484,14 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		if (limit) {
 			models.Actuator.findAll({ offset: offset, limit: limit, raw: true })
 				.success(function(ans){cb(null, ans);})
-				.error(function() {
+				.error(function(err) {
 					cb(err, null);
 				});
 		}
 		else {
 			models.Actuator.findAll({ offset: offset, raw: true })
 				.success(function(ans){cb(null, ans);})
-				.error(function() {
+				.error(function(err) {
 					cb(err, null);
 				});
 		}
@@ -534,7 +534,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	function getActuator(id, cb) {
 		models.Actuator.find(id)
 			.success(function(ans){cb(null, ans);})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -570,7 +570,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function(actuator){
 				cb(null, actuator.type);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -606,7 +606,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function(actuator){
 				cb(null, actuator.customId);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -642,7 +642,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -680,7 +680,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -719,7 +719,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -757,7 +757,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -812,7 +812,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 						});
 					});
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -852,14 +852,14 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		if (limit) {
 			models.Measure.findAll({ offset: offset, limit: limit, raw: true })
 				.success(function(ans){cb(null, ans);})
-				.error(function() {
+				.error(function(err) {
 					cb(err, null);
 				});
 		}
 		else {
 			models.Measure.findAll({ offset: offset, raw: true })
 				.success(function(ans){cb(null, ans);})
-				.error(function() {
+				.error(function(err) {
 					cb(err, null);
 				});
 		}
@@ -902,7 +902,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	function getMeasure(id, cb) {
 		models.Measure.find(id)
 			.success(function(ans){cb(null, ans);})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -938,7 +938,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function(measure){
 				cb(null, measure.measureType);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -974,7 +974,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function(measure){
 				cb(null, measure.value);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -1010,7 +1010,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function(measure){
 				cb(null, measure.time);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -1049,11 +1049,11 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 					.success(function(sensor){
 						cb(null, sensor);
 					})
-				.error(function() {
+				.error(function(err) {
 					cb(err, null);
 				});
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -1090,7 +1090,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -1131,7 +1131,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -1172,7 +1172,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -1210,7 +1210,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -1248,7 +1248,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -1288,11 +1288,11 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 					.success(function(){
 						cb(null, true);
 					})
-				.error(function() {
+				.error(function(err) {
 					cb(err, false);
 				});
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, false);
 			});
 	}
@@ -1336,7 +1336,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function(rule) {
 				cb(null, rule.id);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -1374,14 +1374,14 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		if (limit) {
 			models.Rule.findAll({ offset: offset, limit: limit, raw: true })
 				.success(function(ans){cb(null, ans);})
-				.error(function() {
+				.error(function(err) {
 					cb(err, null);
 				});
 		}
 		else {
 			models.Rule.findAll({ offset: offset, raw: true })
 				.success(function(ans){cb(null, ans);})
-				.error(function() {
+				.error(function(err) {
 					cb(err, null);
 				});
 		}
@@ -1456,7 +1456,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function(rule){
 				cb(null, rule.name);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -1492,7 +1492,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -1529,7 +1529,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
@@ -1567,7 +1567,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			.success(function() {
 				cb(null, true);
 			})
-			.error(function() {
+			.error(function(err) {
 				cb(err, null);
 			});
 	}
