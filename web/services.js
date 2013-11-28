@@ -186,7 +186,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		writeHeaders(resp);
 		getSensor(getData.id, function(err, sensor) {
 			if (err) { error(2, resp, err); return; }
-			resp.end(sensor.values); 
+			resp.end(JSON.stringify({ sensor: (sensor?sensor.values:null) })); 
 		});
 	}
 	 
@@ -553,7 +553,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		writeHeaders(resp);
 		getActuator(getData.id, function(err, actuator) {
 			if (err) { error(2, resp, err); return; }
-			resp.end(actuator.values); 
+			resp.end(JSON.stringify({ actuator: (actuator?actuator.values:null) })); 
 		});
 	}
 	 
@@ -800,16 +800,21 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(Erreur, int)):		Callback
 	 */
 	function createMeasure(value, sensorId, time, measureType, cb) {
-		models.Measure.create({ value: value, measureType: measureType, time: time })
-			.success(function(measure) {
-				measure.setSensor(sensorId)
-					.success(function() {
-						cb(null, measure.id);
+		if (!time) { time = new Date(); }
+		models.Sensor.find(sensorId)
+			.success(function(sensor){
+				models.Measure.create({ value: value, measureType: measureType, time: time })
+					.success(function(measure) {
+						sensor.addMeasure(measure)
+							.success(function() { cb(null, measure.id); })
+							.error(function(err) {
+								measure.destroy().success(function() {
+									cb(err, null);
+								})
+							});
 					})
 					.error(function(err) {
-						measure.destroy().success(function() {
-							cb(err, null);
-						});
+						cb(err, null);
 					});
 			})
 			.error(function(err) {
@@ -883,8 +888,46 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			resp.end(JSON.stringify({ measures: measures })); 
 		});
 	}	
-	 
-
+	  
+	/**
+	 * getRecentMeasuresPerSensor
+	 * ====
+	 * Returns a list of measures of a Sensor, created after a given Date.
+	 * Parameters:
+	 *	- sensorId (int): 			Sensor ID
+	 *	- date (Date): 				Date
+	 *	- cb (Function(err, Measure[])):	Callback
+	 */
+	function getRecentMeasuresPerSensor(sensorId, date, cb) {
+		logger.error(date);
+		if (!date) date = new Date(0);
+		models.Measure.findAll({ where: ["sensorId = ? AND time > ?", sensorId, date] }, {raw: true })
+			.success(function(ans){cb(null, ans);})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetRecentMeasuresPerSensor
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 *	- sensorId (int): 			Sensor ID	- required
+	 *	- date (Date): 				Date		- required
+	 */
+	function serviceGetRecentMeasuresPerSensor(req, resp) {
+		logger.info("<Service> GetRecentMeasuresPerSensor.");
+		var getData = parseRequest(req, ['sensorId', 'date']);
+		
+		writeHeaders(resp);
+		getRecentMeasuresPerSensor(getData.sensorId, getData.date, function (err, measures) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ measures: measures })); 
+		});
+	}	
+	
+	
 	/*
 	 * ------------------------------------------
 	 * MEASURE Services
@@ -921,7 +964,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		writeHeaders(resp);
 		getMeasure(getData.id, function(err, measure) {
 			if (err) { error(2, resp, err); return; }
-			resp.end(measure.values); 
+			resp.end(JSON.stringify({ measure: (measure?measure.values:null) })); 
 		});
 	}
 	 
@@ -1439,7 +1482,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		writeHeaders(resp);
 		getRule(getData.id, function(err, rule) {
 			if (err) { error(2, resp, err); return; }
-			resp.end(rule.values); 
+			resp.end(JSON.stringify({ rule: (rule?rule.values:null) })); 
 		});
 	}
 	 
@@ -1603,6 +1646,9 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		'POST'	: serviceCreateSensor,
 		'GET'	: serviceGetSensors
 	};
+	this.rest['sensors/offset/:offset'] = this.rest['sensors/offset/:offset/limit/:limit'] = {
+		'GET'	: serviceGetSensors
+	};
 	this.rest['sensor/:id'] = {
 		'GET'	: serviceGetSensor,
 		'DELETE': serviceDeleteSensor,
@@ -1621,6 +1667,9 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		'POST'	: serviceCreateActuator,
 		'GET'	: serviceGetActuators
 	};
+	this.rest['actuators/offset/:offset'] = this.rest['actuators/offset/:offset/limit/:limit'] = {
+		'GET'	: serviceGetActuators
+	};
 	this.rest['actuator/:id'] = {
 		'GET'	: serviceGetActuator,
 		'DELETE': serviceDeleteActuator,
@@ -1634,9 +1683,47 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		'GET'	: serviceGetActuatorCustomId,
 		'PUT'	: serviceUpdateActuatorCustomId
 	};
+	
+	this.rest['measures'] = {
+		'POST'	: serviceCreateMeasure,
+		'GET'	: serviceGetMeasures
+	};
+	this.rest['measures/offset/:offset'] = this.rest['measures/offset/:offset/limit/:limit'] = {
+		'GET'	: serviceGetMeasures
+	};
+	this.rest['sensor/:sensorId/measures'] = {
+		'GET'	: serviceGetRecentMeasuresPerSensor
+	};
+	this.rest['sensor/:sensorId/measures/after/:date'] = {
+		'GET'	: serviceGetRecentMeasuresPerSensor
+	};
+	this.rest['measure/:id'] = this.rest['sensor/:sensorId/measure/:id'] = {
+		'GET'	: serviceGetMeasure,
+		'DELETE': serviceDeleteMeasure,
+		'PUT'	: serviceUpdateMeasure
+	};
+	this.rest['measure/:id/value'] = {
+		'GET'	: serviceGetMeasureValue,
+		'PUT'	: serviceUpdateMeasureValue
+	};
+	this.rest['measure/:id/time'] = {
+		'GET'	: serviceGetMeasureTime,
+		'PUT'	: serviceUpdateMeasureTime
+	};
+	this.rest['measure/:id/measureType'] = {
+		'GET'	: serviceGetMeasureMeasureType,
+		'PUT'	: serviceUpdateMeasureMeasureType
+	};
+	this.rest['measure/:id/sensor'] = {
+		'GET'	: serviceGetMeasureSensor,
+		'PUT'	: serviceUpdateMeasureSensor
+	};
 
 	this.rest['rules'] = {
 		'POST'	: serviceCreateRule,
+		'GET'	: serviceGetRules
+	};
+	this.rest['rules/offset/:offset'] = this.rest['rules/offset/:offset/limit/:limit'] = {
 		'GET'	: serviceGetRules
 	};
 	this.rest['rule/:id'] = {
@@ -1648,6 +1735,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		'GET'	: serviceGetRuleName,
 		'PUT'	: serviceUpdateRuleName
 	};
+	
+	
 		
 	return this;
 };

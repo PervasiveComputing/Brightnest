@@ -20,13 +20,18 @@ module.exports = function(sequelize) {
 	var SensorRule = sequelize.import(path.join(__dirname,'model/sensorRule'));
 
 	//Relations:
-	Sensor.hasMany(Measure,{as: 'measures', foreignKey: 'sensorId'});
+	Sensor.hasMany(Measure,{foreignKey: 'sensorId'});
+	Measure.belongsTo(Sensor, { foreignKey : 'sensorId'});
 
-	Sensor.hasMany(SensorRule,{as: 'rules', foreignKey: 'sensorId'});
-	Actuator.hasMany(ActuatorRule,{as: 'rules', foreignKey: 'actuatorId'});
+	Sensor.hasMany(SensorRule,{foreignKey: 'sensorId'});
+	SensorRule.belongsTo(Sensor, { foreignKey : 'sensorId'});
+	Actuator.hasMany(ActuatorRule,{foreignKey: 'actuatorId'});
+	ActuatorRule.belongsTo(Actuator, { foreignKey : 'actuatorId'});
 
-	Rule.hasMany(SensorRule,{as: 'sensorRules', foreignKey: 'ruleId'});
-	Rule.hasMany(ActuatorRule,{as: 'actuatorRules', foreignKey: 'ruleId'});
+	Rule.hasMany(SensorRule,{foreignKey: 'ruleId'});
+	SensorRule.belongsTo(Rule, { foreignKey : 'ruleId'});
+	Rule.hasMany(ActuatorRule,{foreignKey: 'ruleId'});
+	ActuatorRule.belongsTo(Rule, { foreignKey : 'ruleId'});
 
 
 	this.Sensor = Sensor;
