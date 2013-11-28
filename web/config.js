@@ -19,8 +19,8 @@ var config = {
 		'port' : 8080
 	},
 	'db': {
-		'name' :	'brithnest',
-		'uri' :		'brithnest.db',
+		'name' :	'brightnest',
+		'uri' :		'brightnest.db',
 		'username': 'brightnurse', // TO DO
 		'password': 'password'
 	},

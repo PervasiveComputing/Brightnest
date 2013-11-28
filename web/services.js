@@ -2761,9 +2761,6 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	this.rest['actuatorRule/:id/rule'] = {
 		'GET'	: serviceGetActuatorRuleRule
 	};
-
-		
-	
 		
 	return this;
 };

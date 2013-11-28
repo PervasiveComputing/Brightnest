@@ -8,6 +8,7 @@
 var	express = require("express"),
 	http = require('http'),
 	fs = require("fs"),
+	path = require('path'),
 	engine = require('ejs-locals'),
 	connect = require('connect'),
 	config = require("./config"),
@@ -34,7 +35,7 @@ var Sequelize = require('sequelize-sqlite').sequelize;
 var sequelize = new Sequelize(config.getProperty("db.name"), config.getProperty("db.username"), config.getProperty("db.password"), {
   dialect: 'sqlite',
   omitNull: true,
-  storage: config.getProperty("db.uri")
+  storage: path.join(__dirname,'../'+config.getProperty("db.uri"))
 })
 
 
@@ -45,9 +46,8 @@ var sequelize = new Sequelize(config.getProperty("db.name"), config.getProperty(
  */
  
 // Loading the drivers modules:
-var	fs = require('fs'),
-	actuatorsDriversFiles = fs.readdirSync('./drivers/actuators/'),
-	sensorsDriversFiles = fs.readdirSync('./drivers/sensors/'),
+var	actuatorsDriversFiles = fs.readdirSync(path.join(__dirname,'drivers/actuators/')),
+	sensorsDriversFiles = fs.readdirSync(path.join(__dirname,'drivers/sensors/')),
 	
 	sensorsDrivers = [],
 	actuatorsDrivers = [];
@@ -56,7 +56,7 @@ for(var f in actuatorsDriversFiles) {
 	var extension = actuatorsDriversFiles[f].slice(actuatorsDriversFiles[f].length-3, actuatorsDriversFiles[f].length);
 	if (extension == '.js') {
 		var type = actuatorsDriversFiles[f].slice(0, actuatorsDriversFiles[f].length-3); // Removing the '.js' extension 
-		actuatorsDrivers[type] = require('./drivers/actuators/'+actuatorsDriversFiles[f]);
+		actuatorsDrivers[type] = require(path.join(__dirname,'drivers/actuators/'+actuatorsDriversFiles[f]));
 		logger.info('Actuators Driver - ' + type);
 	}
 }
@@ -64,7 +64,7 @@ for(var f in sensorsDriversFiles) {
 	var extension = sensorsDriversFiles[f].slice(sensorsDriversFiles[f].length-3, sensorsDriversFiles[f].length);
 	if (extension == '.js') {
 		var type = sensorsDriversFiles[f].slice(0, sensorsDriversFiles[f].length-3); // Removing the '.js' extension 
-		sensorsDrivers[type] = require('./drivers/sensors/'+sensorsDriversFiles[f]);
+		sensorsDrivers[type] = require(path.join(__dirname,'drivers/sensors/'+sensorsDriversFiles[f]));
 		logger.info('Sensors Driver - ' + type);
 	}
 }
