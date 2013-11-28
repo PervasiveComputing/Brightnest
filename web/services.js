@@ -803,6 +803,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		if (!time) { time = new Date(); }
 		models.Sensor.find(sensorId)
 			.success(function(sensor){
+				if (!sensor) { cb('Sensor doesn\'t exist', null); return; }
 				models.Measure.create({ value: value, measureType: measureType, time: time })
 					.success(function(measure) {
 						sensor.addMeasure(measure)
@@ -1076,7 +1077,6 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		});
 	}
 	
-	
 	/**
 	 * getMeasureSensor
 	 * ====
@@ -1118,7 +1118,6 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			resp.end(JSON.stringify({ sensor: sensor })); 
 		});
 	}
-	
 	
 	/**
 	 * deleteMeasure
@@ -1164,12 +1163,11 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * Parameters:
 	 *	- id (float): 				ID
 	 *	- value (float): 			Value
-	 * 	- sensorId (int):			ID of the sensor
 	 * 	- time (Date):				Date
 	 *	- measureType (String): 	Type of measure
 	 *	- cb (Function(bool)):		Callback
 	 */ 
-	function updateMeasure(id, value, sensorId, time, measureType, cb) {
+	function updateMeasure(id, value, time, measureType, cb) {
 		models.Measure.update({ value: value, measureType: measureType, time: time }, {id: id})
 			.success(function() {
 				cb(null, true);
@@ -1191,10 +1189,10 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 */
 	function serviceUpdateMeasure(req, resp) {
 		logger.info("<Service> UpdateMeasure.");
-		var measureData = parseRequest(req, ['id', 'value', 'sensorId', 'time', 'measureType']);
+		var measureData = parseRequest(req, ['id', 'value', 'time', 'measureType']);
 		
 		writeHeaders(resp);
-		updateMeasure(measureData.id, measureData.value, measureData.sensorId, measureData.time, measureData.measureType, function(err, bool) {
+		updateMeasure(measureData.id, measureData.value, measureData.time, measureData.measureType, function(err, bool) {
 			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
@@ -1634,7 +1632,977 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		});
 	}
 	 
-	 	 
+
+	/*
+	 * ------------------------------------------
+	 * SENSORRULES - CRUD Services
+	 * ------------------------------------------
+	 */
+	 
+	/**
+	 * createSensorRule
+	 * ====
+	 * Add a sensorRule to the DB and system.
+	 * Parameters:
+	 *	- ruleId (int): 					ID of the parent Rule
+	 *	- measureType (String): 			Type of measure concerned
+	 *	- intervalStart (float): 			Smallest Value concerned
+	 *	- intervalEnd (float): 				Biggest Value concerned
+	 *	- cb (Function(Erreur, int)):		Callback
+	 */
+	function createSensorRule(ruleId, measureType, intervalStart, intervalEnd, cb) {
+		models.Rule.find(ruleId)
+			.success(function(rule){
+				if (!rule) { cb('Rule doesn\'t exist', null); return; }
+				models.SensorRule.create({ measureType: measureType, intervalStart: intervalStart, intervalEnd: intervalEnd })
+					.success(function(sensorRule) {
+						sensor.addMeasure(sensorRule)
+							.success(function() { cb(null, sensorRule.id); })
+							.error(function(err) {
+								sensorRule.destroy().success(function() {
+									cb(err, null);
+								})
+							});
+					})
+					.error(function(err) {
+						cb(err, null);
+					});
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceCreateSensorRule
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 *	- ruleId (String): 					ID of the parent Rule		- required
+	 *	- measureType (String): 			Type of measure concerned	- required
+	 *	- intervalStart (float): 			Smallest Value concerned	- required
+	 *	- intervalEnd (float): 				Biggest Value concerned 	- required
+	 */
+	function serviceCreateSensorRule(req, resp) {
+		logger.info("<Service> CreateSensorRule.");
+		var sensorRuleData = parseRequest(req, ['ruleId', 'measureType', 'intervalStart', 'intervalEnd']);
+		
+		writeHeaders(resp);
+		createSensorRule(sensorRuleData.ruleId, sensorRuleData.measureType, sensorRuleData.intervalStart, sensorRuleData.intervalEnd, function(err, id) {
+			if (err) { error(10, resp, err); return; }
+			resp.end(JSON.stringify({ status: 'ok', id: id }));
+		});
+	}
+	 
+	/**
+	 * getSensorRules
+	 * ====
+	 * Returns a list of sensorRules.
+	 * Parameters:
+	 *	- limit (int): 					Number max of sensorRules to return
+	 *	- offset (int): 				Number of the sensorRule to start with
+	 *	- cb (Function(err, SensorRule[])):	Callback
+	 */
+	function getSensorRules(limit, offset, cb) {
+		if (!offset) offset = 0;
+		if (limit) {
+			models.SensorRule.findAll({ offset: offset, limit: limit, raw: true })
+				.success(function(ans){cb(null, ans);})
+				.error(function(err) {
+					cb(err, null);
+				});
+		}
+		else {
+			models.SensorRule.findAll({ offset: offset, raw: true })
+				.success(function(ans){cb(null, ans);})
+				.error(function(err) {
+					cb(err, null);
+				});
+		}
+	}
+	/**
+	 * serviceGetSensorRules
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 *		- limit (int): 		Number max to return				- optional
+	 *		- offset (int): 	Number of the sensorRule to start with	- optional
+	 */
+	function serviceGetSensorRules(req, resp) {
+		logger.info("<Service> GetSensorRules.");
+		var getData = parseRequest(req, ['limit', 'offset']);
+		
+		writeHeaders(resp);
+		getSensorRules(getData.limit, getData.offset, function(err, sensorRules) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ sensorRules: sensorRules })); 
+		});
+	}	
+	 
+	/**
+	 * getsensorRulesPerRule
+	 * ====
+	 * Returns a list of sensorRules of a Rule
+	 * Parameters:
+	 *	- ruleId (int): 			Rule ID
+	 *	- cb (Function(err, sensorRule[])):	Callback
+	 */
+	function getsensorRulesPerRule(ruleId, cb) {
+		logger.error(date);
+		if (!date) date = new Date(0);
+		models.sensorRule.findAll({ where: ["ruleId = ?", ruleId] }, {raw: true })
+			.success(function(ans){cb(null, ans);})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetsensorRulesPerRule
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 *	- ruleId (int): 			Rule ID	- required
+	 */
+	function serviceGetsensorRulesPerRule(req, resp) {
+		logger.info("<Service> GetsensorRulesPerRule.");
+		var getData = parseRequest(req, ['ruleId']);
+		
+		writeHeaders(resp);
+		getsensorRulesPerRule(getData.ruleId, function (err, sensorRules) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ sensorRules: sensorRules })); 
+		});
+	}	
+	
+	
+	/*
+	 * ------------------------------------------
+	 * SENSORRULE Services
+	 * ------------------------------------------
+	 */
+	 
+	/**
+	 * getSensorRule
+	 * ====
+	 * Returns the SensorRule corresponding to the given id
+	 * Parameters:
+	 *	- id (int): 			Id
+	 *	- cb (Function(SensorRule)):	Callback
+	 */
+	function getSensorRule(id, cb) {
+		models.SensorRule.find(id).success(function(ans){cb(null, ans);});
+	}
+	/**
+	 * serviceGetSensorRule
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetSensorRule(req, resp) {
+		logger.info("<Service> GetSensorRule.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getSensorRule(getData.id, function(err, sensorRule) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ sensorRule: (sensorRule?sensorRule.values:null) })); 
+		});
+	}
+	 
+	/**
+	 * getSensorRuleMeasureType
+	 * ====
+	 * Returns the SensorRule's measureType
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, measureType):	Callback
+	 */
+	function getSensorRuleMeasureType(id, cb) {
+		models.SensorRule.find(id)
+			.success(function(sensorRule){
+				cb(null, sensorRule.measureType);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetSensorRuleMeasureType
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetSensorRuleMeasureType(req, resp) {
+		logger.info("<Service> GetSensorRuleMeasureType.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getSensorRuleMeasureType(getData.id, function(err, measureType) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ measureType: measureType })); 
+		});
+	}
+ 
+	/**
+	 * getSensorRuleIntervalStart
+	 * ====
+	 * Returns the SensorRule's intervalStart
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, intervalStart):	Callback
+	 */
+	function getSensorRuleIntervalStart(id, cb) {
+		models.SensorRule.find(id)
+			.success(function(sensorRule){
+				cb(null, sensorRule.intervalStart);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetSensorRuleIntervalStart
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetSensorRuleIntervalStart(req, resp) {
+		logger.info("<Service> GetSensorRuleIntervalStart.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getSensorRuleIntervalStart(getData.id, function(err, intervalStart) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ intervalStart: intervalStart })); 
+		});
+	}
+	
+	/**
+	 * getSensorRuleIntervalEnd
+	 * ====
+	 * Returns the SensorRule's intervalEnd
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, intervalEnd):	Callback
+	 */
+	function getSensorRuleIntervalEnd(id, cb) {
+		models.SensorRule.find(id)
+			.success(function(sensorRule){
+				cb(null, sensorRule.intervalEnd);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetSensorRuleIntervalEnd
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetSensorRuleIntervalEnd(req, resp) {
+		logger.info("<Service> GetSensorRuleIntervalEnd.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getSensorRuleIntervalEnd(getData.id, function(err, intervalEnd) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ intervalEnd: intervalEnd })); 
+		});
+	}
+
+	/**
+	 * getSensorRuleRule
+	 * ====
+	 * Returns the SensorRule's rule
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, rule):	Callback
+	 */
+	function getSensorRuleRule(id, cb) {
+		models.RuleRule.find(id)
+			.success(function(sensorRule){
+				sensorRule.getRule()
+					.success(function(rule){
+						cb(null, rule);
+					})
+				.error(function(err) {
+					cb(err, null);
+				});
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetSensorRuleRule
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetSensorRuleRule(req, resp) {
+		logger.info("<Service> GetSensorRuleRule.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getSensorRuleRule(getData.id, function(err, rule) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ rule: rule })); 
+		});
+	}
+	
+	/**
+	 * deleteSensorRule
+	 * ====
+	 * Delete the SensorRule corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 			ID
+	 *	- cb (Function(bool)):	Callback
+	 */
+	function deleteSensorRule(id, cb) {
+		models.SensorRule.destroy({id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceDeleteSensorRule
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceDeleteSensorRule(req, resp) {
+		logger.info("<Service> DeleteSensorRule.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		deleteSensorRule(getData.id, function (err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	} 
+	 
+	/**
+	 * updateSensorRule
+	 * ====
+	 * Update the SensorRule corresponding to the given id
+	 * Parameters:
+	 *	- id (int):		 					ID
+	 *	- measureType (String): 			Type of measure concerned
+	 *	- intervalStart (float): 			Smallest Value concerned
+	 *	- intervalEnd (float): 				Biggest Value concerned 
+	 *	- cb (Function(bool)):				Callback
+	 */ 
+	function updateSensorRule(measureType, intervalStart, intervalEnd, cb) {
+		models.SensorRule.update({ measureType: measureType, intervalStart: intervalStart, intervalEnd: intervalEnd }, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceUpdateSensorRule
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *	- measureType (String): 			Type of measure concerned	- required
+	 *	- intervalStart (float): 			Smallest Value concerned	- required
+	 *	- intervalEnd (float): 				Biggest Value concerned 	- required
+	 */
+	function serviceUpdateSensorRule(req, resp) {
+		logger.info("<Service> UpdateSensorRule.");
+		var sensorRuleData = parseRequest(req, ['measureType', 'intervalStart', 'intervalEnd']);
+		
+		writeHeaders(resp);
+		updateSensorRule(sensorRuleData.measureType, sensorRuleData.intervalStart, sensorRuleData.intervalEnd, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+		
+	/**
+	 * updateSensorRuleMeasureType
+	 * ====
+	 * Update the measureType of the SensorRule corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- measureType (String): 			MeasureType to change
+	 *	- cb (Function(bool):		Callback
+	 */ 
+	function updateSensorRuleMeasureType(id, measureType, cb) {
+			models.SensorRule.update({measureType: measureType}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceUpdateSensorRuleMeasureType
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		- measureType (String): 	MeasureType 		- required
+	 */
+	function serviceUpdateSensorRuleMeasureType(req, resp) {
+		logger.info("<Service> UpdateSensorRuleMeasureType.");
+		var sensorRuleData = parseRequest(req, ['id', 'measureType']);
+		
+		writeHeaders(resp);
+		updateSensorRuleMeasureType(sensorRuleData.id, sensorRuleData.measureType, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+		
+	/**
+	 * updateSensorRuleIntervalStart
+	 * ====
+	 * Update the intervalStart of the SensorRule corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- intervalStart (String): 	IntervalStart to change
+	 *	- cb (Function(bool):		Callback
+	 */ 
+	function updateSensorRuleIntervalStart(id, intervalStart, cb) {
+			models.SensorRule.update({intervalStart: intervalStart}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceUpdateSensorRuleIntervalStart
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		- intervalStart (String): 	IntervalStart 		- required
+	 */
+	function serviceUpdateSensorRuleIntervalStart(req, resp) {
+		logger.info("<Service> UpdateSensorRuleIntervalStart.");
+		var sensorRuleData = parseRequest(req, ['id', 'intervalStart']);
+		
+		writeHeaders(resp);
+		updateSensorRuleIntervalStart(sensorRuleData.id, sensorRuleData.intervalStart, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+	 
+	/**
+	 * updateSensorRuleIntervalEnd
+	 * ====
+	 * Update the intervalEnd of the SensorRule corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- intervalEnd (String): 	IntervalEnd to change
+	 *	- cb (Function(bool):		Callback
+	 */ 
+	function updateSensorRuleIntervalEnd(id, intervalEnd, cb) {
+			models.SensorRule.update({intervalEnd: intervalEnd}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceUpdateSensorRuleIntervalEnd
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		- intervalEnd (String): 	IntervalEnd 		- required
+	 */
+	function serviceUpdateSensorRuleIntervalEnd(req, resp) {
+		logger.info("<Service> UpdateSensorRuleIntervalEnd.");
+		var sensorRuleData = parseRequest(req, ['id', 'intervalEnd']);
+		
+		writeHeaders(resp);
+		updateSensorRuleIntervalEnd(sensorRuleData.id, sensorRuleData.intervalEnd, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+	 
+
+	/*
+	 * ------------------------------------------
+	 * ACTUATORRULES - CRUD Services
+	 * ------------------------------------------
+	 */
+	 
+	/**
+	 * createActuatorRule
+	 * ====
+	 * Add a actuatorRule to the DB and system.
+	 * Parameters:
+	 *	- ruleId (int): 					ID of the parent Rule
+	 *	- value (float): 					Value to send to the actuator
+	 *	- isActive (bool): 					IsActive Flag
+	 *	- cb (Function(Erreur, int)):		Callback
+	 */
+	function createActuatorRule(ruleId, value, isActive, cb) {
+		models.Rule.find(ruleId)
+			.success(function(rule){
+				if (!rule) { cb('Rule doesn\'t exist', null); return; }
+				models.ActuatorRule.create({ value: value, isActive: isActive })
+					.success(function(actuatorRule) {
+						actuator.addMeasure(actuatorRule)
+							.success(function() { cb(null, actuatorRule.id); })
+							.error(function(err) {
+								actuatorRule.destroy().success(function() {
+									cb(err, null);
+								})
+							});
+					})
+					.error(function(err) {
+						cb(err, null);
+					});
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceCreateActuatorRule
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 *	- ruleId (String): 					ID of the parent Rule			- required
+	 *	- value (float): 					Value to send to the actuator	- required	
+	 *	- isActive (bool): 					IsActive Flag 					- required
+	 */
+	function serviceCreateActuatorRule(req, resp) {
+		logger.info("<Service> CreateActuatorRule.");
+		var actuatorRuleData = parseRequest(req, ['ruleId', 'value', 'isActive']);
+		
+		writeHeaders(resp);
+		createActuatorRule(actuatorRuleData.ruleId, actuatorRuleData.value, actuatorRuleData.isActive, function(err, id) {
+			if (err) { error(10, resp, err); return; }
+			resp.end(JSON.stringify({ status: 'ok', id: id }));
+		});
+	}
+	 
+	/**
+	 * getActuatorRules
+	 * ====
+	 * Returns a list of actuatorRules.
+	 * Parameters:
+	 *	- limit (int): 					Number max of actuatorRules to return
+	 *	- offset (int): 				Number of the actuatorRule to start with
+	 *	- cb (Function(err, ActuatorRule[])):	Callback
+	 */
+	function getActuatorRules(limit, offset, cb) {
+		if (!offset) offset = 0;
+		if (limit) {
+			models.ActuatorRule.findAll({ offset: offset, limit: limit, raw: true })
+				.success(function(ans){cb(null, ans);})
+				.error(function(err) {
+					cb(err, null);
+				});
+		}
+		else {
+			models.ActuatorRule.findAll({ offset: offset, raw: true })
+				.success(function(ans){cb(null, ans);})
+				.error(function(err) {
+					cb(err, null);
+				});
+		}
+	}
+	/**
+	 * serviceGetActuatorRules
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 *		- limit (int): 		Number max to return				- optional
+	 *		- offset (int): 	Number of the actuatorRule to start with	- optional
+	 */
+	function serviceGetActuatorRules(req, resp) {
+		logger.info("<Service> GetActuatorRules.");
+		var getData = parseRequest(req, ['limit', 'offset']);
+		
+		writeHeaders(resp);
+		getActuatorRules(getData.limit, getData.offset, function(err, actuatorRules) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ actuatorRules: actuatorRules })); 
+		});
+	}	
+	 
+	/**
+	 * getactuatorRulesPerRule
+	 * ====
+	 * Returns a list of actuatorRules of a Rule
+	 * Parameters:
+	 *	- ruleId (int): 			Rule ID
+	 *	- cb (Function(err, actuatorRule[])):	Callback
+	 */
+	function getactuatorRulesPerRule(ruleId, cb) {
+		logger.error(date);
+		if (!date) date = new Date(0);
+		models.actuatorRule.findAll({ where: ["ruleId = ?", ruleId] }, {raw: true })
+			.success(function(ans){cb(null, ans);})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetactuatorRulesPerRule
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 *	- ruleId (int): 			Rule ID	- required
+	 */
+	function serviceGetactuatorRulesPerRule(req, resp) {
+		logger.info("<Service> GetactuatorRulesPerRule.");
+		var getData = parseRequest(req, ['ruleId']);
+		
+		writeHeaders(resp);
+		getactuatorRulesPerRule(getData.ruleId, function (err, actuatorRules) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ actuatorRules: actuatorRules })); 
+		});
+	}	
+	
+	
+	/*
+	 * ------------------------------------------
+	 * ACTUATORRULE Services
+	 * ------------------------------------------
+	 */
+	 
+	/**
+	 * getActuatorRule
+	 * ====
+	 * Returns the ActuatorRule corresponding to the given id
+	 * Parameters:
+	 *	- id (int): 			Id
+	 *	- cb (Function(ActuatorRule)):	Callback
+	 */
+	function getActuatorRule(id, cb) {
+		models.ActuatorRule.find(id).success(function(ans){cb(null, ans);});
+	}
+	/**
+	 * serviceGetActuatorRule
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetActuatorRule(req, resp) {
+		logger.info("<Service> GetActuatorRule.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getActuatorRule(getData.id, function(err, actuatorRule) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ actuatorRule: (actuatorRule?actuatorRule.values:null) })); 
+		});
+	}
+ 
+	/**
+	 * getActuatorRuleValue
+	 * ====
+	 * Returns the ActuatorRule's value
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, value):	Callback
+	 */
+	function getActuatorRuleValue(id, cb) {
+		models.ActuatorRule.find(id)
+			.success(function(actuatorRule){
+				cb(null, actuatorRule.value);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetActuatorRuleValue
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetActuatorRuleValue(req, resp) {
+		logger.info("<Service> GetActuatorRuleValue.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getActuatorRuleValue(getData.id, function(err, value) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ value: value })); 
+		});
+	}
+	
+	/**
+	 * getActuatorRuleIsActive
+	 * ====
+	 * Returns the ActuatorRule's isActive
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, isActive):	Callback
+	 */
+	function getActuatorRuleIsActive(id, cb) {
+		models.ActuatorRule.find(id)
+			.success(function(actuatorRule){
+				cb(null, actuatorRule.isActive);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetActuatorRuleIsActive
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetActuatorRuleIsActive(req, resp) {
+		logger.info("<Service> GetActuatorRuleIsActive.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getActuatorRuleIsActive(getData.id, function(err, isActive) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ isActive: isActive })); 
+		});
+	}
+
+	/**
+	 * getActuatorRuleRule
+	 * ====
+	 * Returns the ActuatorRule's rule
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, rule):	Callback
+	 */
+	function getActuatorRuleRule(id, cb) {
+		models.RuleRule.find(id)
+			.success(function(actuatorRule){
+				actuatorRule.getRule()
+					.success(function(rule){
+						cb(null, rule);
+					})
+				.error(function(err) {
+					cb(err, null);
+				});
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetActuatorRuleRule
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetActuatorRuleRule(req, resp) {
+		logger.info("<Service> GetActuatorRuleRule.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getActuatorRuleRule(getData.id, function(err, rule) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ rule: rule })); 
+		});
+	}
+	
+	/**
+	 * deleteActuatorRule
+	 * ====
+	 * Delete the ActuatorRule corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 			ID
+	 *	- cb (Function(bool)):	Callback
+	 */
+	function deleteActuatorRule(id, cb) {
+		models.ActuatorRule.destroy({id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceDeleteActuatorRule
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceDeleteActuatorRule(req, resp) {
+		logger.info("<Service> DeleteActuatorRule.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		deleteActuatorRule(getData.id, function (err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	} 
+	 
+	/**
+	 * updateActuatorRule
+	 * ====
+	 * Update the ActuatorRule corresponding to the given id
+	 * Parameters:
+	 *	- id (int):		 					ID
+	 *	- value (float): 					Value to send to the actuator
+	 *	- isActive (bool): 					IsActive Flag
+	 *	- cb (Function(err, bool)):				Callback
+	 */ 
+	function updateActuatorRule(measureType, value, isActive, cb) {
+		models.ActuatorRule.update({ value: value, isActive: isActive }, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceUpdateActuatorRule
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *	- value (float): 			Value to send to the actuator	- required
+	 *	- isActive (bool): 			IsActive Flag					- required
+	 */
+	function serviceUpdateActuatorRule(req, resp) {
+		logger.info("<Service> UpdateActuatorRule.");
+		var actuatorRuleData = parseRequest(req, ['value', 'isActive']);
+		
+		writeHeaders(resp);
+		updateActuatorRule(actuatorRuleData.value, actuatorRuleData.isActive, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+		
+	/**
+	 * updateActuatorRuleValue
+	 * ====
+	 * Update the value of the ActuatorRule corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- value (String): 			Value to change
+	 *	- cb (Function(bool):		Callback
+	 */ 
+	function updateActuatorRuleValue(id, value, cb) {
+			models.ActuatorRule.update({value: value}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceUpdateActuatorRuleValue
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		- value (String): 	Value 		- required
+	 */
+	function serviceUpdateActuatorRuleValue(req, resp) {
+		logger.info("<Service> UpdateActuatorRuleValue.");
+		var actuatorRuleData = parseRequest(req, ['id', 'value']);
+		
+		writeHeaders(resp);
+		updateActuatorRuleValue(actuatorRuleData.id, actuatorRuleData.value, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+	 
+	/**
+	 * updateActuatorRuleIsActive
+	 * ====
+	 * Update the isActive of the ActuatorRule corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- isActive (bool): 			IsActive to change
+	 *	- cb (Function(bool):		Callback
+	 */ 
+	function updateActuatorRuleIsActive(id, isActive, cb) {
+			models.ActuatorRule.update({isActive: isActive}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceUpdateActuatorRuleIsActive
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		- isActive (bool): 	IsActive 		- required
+	 */
+	function serviceUpdateActuatorRuleIsActive(req, resp) {
+		logger.info("<Service> UpdateActuatorRuleIsActive.");
+		var actuatorRuleData = parseRequest(req, ['id', 'isActive']);
+		
+		writeHeaders(resp);
+		updateActuatorRuleIsActive(actuatorRuleData.id, actuatorRuleData.isActive, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+	 
+	 	  	 
 	/*
 	 * ------------------------------------------
 	 * ROUTING
@@ -1735,7 +2703,66 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		'GET'	: serviceGetRuleName,
 		'PUT'	: serviceUpdateRuleName
 	};
+
+	this.rest['sensorRules'] = {
+		'POST'	: serviceCreateSensorRule,
+		'GET'	: serviceGetSensorRules
+	};
+	this.rest['sensorRules/offset/:offset'] = this.rest['sensorRules/offset/:offset/limit/:limit'] = {
+		'GET'	: serviceGetSensorRules
+	};
+	this.rest['rule/:ruleId/sensorRules'] = {
+		'GET'	: getsensorRulesPerRule
+	};
+	this.rest['sensorRule/:id'] = this.rest['rule/:ruleId/sensorRule/:id'] = {
+		'GET'	: serviceGetSensorRule,
+		'DELETE': serviceDeleteSensorRule,
+		'PUT'	: serviceUpdateSensorRule
+	};
+	this.rest['sensorRule/:id/measureType'] = {
+		'GET'	: serviceGetSensorRuleMeasureType,
+		'PUT'	: serviceUpdateSensorRuleMeasureType
+	};
+	this.rest['sensorRule/:id/intervalStart'] = {
+		'GET'	: serviceGetSensorRuleIntervalStart,
+		'PUT'	: serviceUpdateSensorRuleIntervalStart
+	};
+	this.rest['sensorRule/:id/intervalEnd'] = {
+		'GET'	: serviceGetSensorRuleIntervalEnd,
+		'PUT'	: serviceUpdateSensorRuleIntervalEnd
+	};
+	this.rest['sensorRule/:id/rule'] = {
+		'GET'	: serviceGetSensorRuleRule
+	};
 	
+	this.rest['actuatorRules'] = {
+		'POST'	: serviceCreateActuatorRule,
+		'GET'	: serviceGetActuatorRules
+	};
+	this.rest['actuatorRules/offset/:offset'] = this.rest['actuatorRules/offset/:offset/limit/:limit'] = {
+		'GET'	: serviceGetActuatorRules
+	};
+	this.rest['rule/:ruleId/actuatorRules'] = {
+		'GET'	: getactuatorRulesPerRule
+	};
+	this.rest['actuatorRule/:id'] = this.rest['rule/:ruleId/actuatorRule/:id'] = {
+		'GET'	: serviceGetActuatorRule,
+		'DELETE': serviceDeleteActuatorRule,
+		'PUT'	: serviceUpdateActuatorRule
+	};
+	this.rest['actuatorRule/:id/value'] = {
+		'GET'	: serviceGetActuatorRuleValue,
+		'PUT'	: serviceUpdateActuatorRuleValue
+	};
+	this.rest['actuatorRule/:id/isActive'] = {
+		'GET'	: serviceGetActuatorRuleIsActive,
+		'PUT'	: serviceUpdateActuatorRuleIsActive
+	};
+	this.rest['actuatorRule/:id/rule'] = {
+		'GET'	: serviceGetActuatorRuleRule
+	};
+
+		
 	
 		
 	return this;
