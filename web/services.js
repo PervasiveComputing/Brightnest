@@ -71,9 +71,15 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 				.success(function(sensor) {
 					// Let the driver handle the integration of the device to the system:
 					sensorsDrivers[type].add(customId, function(err){
-							if (err) { cb(err, null); return; }
-							cb(null, sensor.id);
-						});
+						if (err) { // Cancelling Modif:
+							models.Sensor.destroy({id: id})
+								.success(function() {
+									cb(err, null);
+									return;
+								});
+						}
+						else cb(null, sensor.id);
+					});
 				})
 				.error(function(err) {
 					cb(err, null);
@@ -272,13 +278,29 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool)):	Callback
 	 */
 	function deleteSensor(id, cb) {
-		models.Sensor.destroy({id: id})
-			.success(function() {
-				cb(null, true);
-			})
-			.error(function(err) {
-				cb(err, false);
+		getSensor(id, function(err, prevSensor) { // Getting info for driver
+			if (err) { error(2, resp, err); return; }
+			sensorsDrivers[prevSensor.type].remove(prevSensor.customId, function(err){
+				if (err) {
+					cb(err, null);
+					return;
+				}
+				// Remove from DB:
+				models.Sensor.destroy({id: id})
+					.success(function() {
+						cb(null, true);
+					})
+					.error(function(err1) { // Cancelling Modif:
+						sensorsDrivers[prevSensor.type].add(prevSensor.customId, function(err2){
+							if (err2) {
+								cb('Device removed from system but not DB. Contact Admin', null);
+								return;
+							}
+							cb(err1, null);
+						});
+					});
 			});
+		});
 	}
 	/**
 	 * serviceDeleteSensor
@@ -293,7 +315,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		deleteSensor(getData.id, function (bool) {
+		deleteSensor(getData.id, function (err, bool) {
 			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
@@ -310,13 +332,32 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool)):		Callback
 	 */ 
 	function updateSensor(id, type, customId, cb) {
-		models.Sensor.update({type: type, customId: customId}, {id: id})
-			.success(function() {
-				cb(null, true);
-			})
-			.error(function(err) {
-				cb(err, null);
+		if (sensorsDrivers[type]) { // If this kind of device is supported:
+			getSensor(id, function(err, prevSensor) { // Getting previous customId to inform the Driver of the update:
+				if (err) { error(2, resp, err); return; }
+				// Add to DB:
+				models.Sensor.update({type: type, customId: customId}, {id: id})
+					.success(function() {
+						// Inform the driver of the change:
+						sensorsDrivers[type].update(prevSensor.customId, customId, function(err){
+								if (err) { // Cancelling Modif:
+									models.Sensor.update({type: prevSensor.type, customId: prevSensor.customId}, {id: id})
+										.success(function() {
+											cb(err, null);
+											return;
+										});
+								}
+								else cb(null, true);
+							});
+					})
+					.error(function(err) {
+						cb(err, null);
+					});
 			});
+			
+		} else {
+			cb('Device not supported', null);
+		}
 	}
 	/**
 	 * serviceUpdateSensor
@@ -386,13 +427,27 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool):		Callback
 	 */ 
 	function updateSensorCustomId(id, customId, cb) {
-			models.Sensor.update({customId: customId}, {id: id})
-			.success(function() {
-				cb(null, true);
-			})
-			.error(function(err) {
-				cb(err, null);
-			});
+		getSensor(id, function(err, prevSensor) { // Getting previous customId to inform the Driver of the update:
+			if (err) { error(2, resp, err); return; }
+				// Add to DB:
+				models.Sensor.update({type: type, customId: customId}, {id: id})
+					.success(function() {
+						// Inform the driver of the change:
+						sensorsDrivers[prevSensor.type].update(prevSensor.customId, customId, function(err){
+								if (err) { // Cancelling Modif:
+									models.Sensor.update({customId: prevSensor.customId}, {id: id})
+										.success(function() {
+											cb(err, null);
+											return;
+										});
+								}
+								else cb(null, true);
+							});
+					})
+					.error(function(err) {
+						cb(err, null);
+					});
+		});
 	}
 	/**
 	 * serviceUpdateSensorCustomId
@@ -438,9 +493,15 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 				.success(function(actuator) {
 					// Let the driver handle the integration of the device to the system:
 					actuatorsDrivers[type].add(customId, function(err){
-							if (err) { cb(err, null); return; }
-							cb(null, actuator.id);
-						});
+						if (err) { // Cancelling Modif:
+							models.Actuator.destroy({id: id})
+								.success(function() {
+									cb(err, null);
+									return;
+								});
+						}
+						else cb(null, actuator.id);
+					});
 				})
 				.error(function(err) {
 					cb(err, 'nok');
@@ -638,13 +699,29 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool)):	Callback
 	 */
 	function deleteActuator(id, cb) {
-		models.Actuator.destroy({id: id})
-			.success(function() {
-				cb(null, true);
-			})
-			.error(function(err) {
-				cb(err, null);
+		getActuator(id, function(err, prevActuator) { // Getting info in case it goes wrong
+			if (err) { error(2, resp, err); return; }
+			actuatorsDrivers[prevActuator.type].remove(prevActuator.customId, function(err){
+				if (err) {
+					cb(err, null);
+					return;
+				}
+				// Remove from DB:
+				models.Actuator.destroy({id: id})
+					.success(function() {
+						cb(null, true);
+					})
+					.error(function(err1) { // Cancelling Modif:
+						actuatorsDrivers[prevActuator.type].add(prevActuator.customId, function(err2){
+							if (err2) {
+								cb('Device removed from system but not DB. Contact Admin', null);
+								return;
+							}
+							cb(err1, null);
+						});
+					});
 			});
+		});
 	}
 	/**
 	 * serviceDeleteActuator
@@ -676,13 +753,32 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool)):		Callback
 	 */ 
 	function updateActuator(id, type, customId, cb) {
-		models.Actuator.update({type: type, customId: customId}, {id: id})
-			.success(function() {
-				cb(null, true);
-			})
-			.error(function(err) {
-				cb(err, null);
+		if (actuatorsDrivers[type]) { // If this kind of device is supported:
+			getActuator(id, function(err, prevActuator) { // Getting previous customId to inform the Driver of the update:
+				if (err) { error(2, resp, err); return; }
+				// Add to DB:
+				models.Actuator.update({type: type, customId: customId}, {id: id})
+					.success(function() {
+						// Inform the driver of the change:
+						actuatorsDrivers[type].update(prevActuator.customId, customId, function(err){
+								if (err) { // Cancelling Modif:
+									models.Actuator.update({type: prevActuator.type, customId: prevActuator.customId}, {id: id})
+										.success(function() {
+											cb(err, null);
+											return;
+										});
+								}
+								else cb(null, true);
+							});
+					})
+					.error(function(err) {
+						cb(err, null);
+					});
 			});
+			
+		} else {
+			cb('Device not supported', null);
+		}
 	}
 	/**
 	 * serviceUpdateActuator
@@ -753,13 +849,27 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool):		Callback
 	 */ 
 	function updateActuatorCustomId(id, customId, cb) {
-			models.Actuator.update({customId: customId}, {id: id})
-			.success(function() {
-				cb(null, true);
-			})
-			.error(function(err) {
-				cb(err, null);
-			});
+		getActuator(id, function(err, prevActuator) { // Getting previous customId to inform the Driver of the update:
+			if (err) { error(2, resp, err); return; }
+			// Add to DB:
+			models.Actuator.update({type: type, customId: customId}, {id: id})
+				.success(function(actuator) {
+					// Inform the driver of the change:
+					actuatorsDrivers[prevActuator.type].update(prevActuator.customId, customId, function(err){
+							if (err) { // Cancelling Modif:
+								models.Actuator.update({customId: prevActuator.customId}, {id: id})
+									.success(function() {
+										cb(err, null);
+										return;
+									});
+							}
+							else cb(null, true);
+						});
+				})
+				.error(function(err) {
+					cb(err, null);
+				});
+		});
 	}
 	/**
 	 * serviceUpdateActuatorCustomId

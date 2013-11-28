@@ -19,4 +19,33 @@ function add(customId, cb) {
 	cb(null);
 }
 
+/**
+ * update
+ * ====
+ * Change the custom ID of the device.
+ * Parameters:
+ *	- prevCustomId (String):	Previous ID
+ *	- newCustomId (String):		New ID
+ *	- cb (Function(error)):		Callback with an error or *null* as parameter
+ */
+function update(prevCustomId, newCustomId, cb) {
+	// TO DO
+	cb(null);
+}
+
+/**
+ * remove
+ * ====
+ * Remove a device.
+ * Parameters:
+ *	- customId (String):		ID
+ *	- cb (Function(error)):		Callback with an error or *null* as parameter
+ */
+function remove(customId, cb) {
+	// TO DO
+	cb(null);
+}
+
 exports.add = add;
+exports.update = update;
+exports.remove = remove;
