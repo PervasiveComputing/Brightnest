@@ -14,6 +14,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		result.error = {};
 		result.error.code = code;
 		result.status = 'nok';
+		
+		
 
 		switch(code) {
 			case 0:
@@ -29,7 +31,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 				result.error.msg = customMsg?customMsg:"Unknow error";
 		}
 
-		logger.error("Error function with message : " + result.error.msg)
+		logger.error("Error function with message : " + result.error.msg + (customMsg?' (err: '+customMsg+')':''));
 		var jsonResult = JSON.stringify(result);
 			resp.end(jsonResult);
 	}
@@ -65,16 +67,20 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	function createSensor(type, customId, cb) {
 		if (sensorsDrivers[type]) { // If this kind of device is supported:
 			// Add to DB:
-			models.Sensor.create({ customId: customId, type: type }).success(function(sensor) {
-				// Let the driver handle the integration of the device to the system:
-				sensorsDrivers[type].add(customId, function(err){
-						if (err) { cb(err, null); return; }
-						cb(null, sensor.id);
-					});
-			});
+			models.Sensor.create({ customId: customId, type: type })
+				.success(function(sensor) {
+					// Let the driver handle the integration of the device to the system:
+					sensorsDrivers[type].add(customId, function(err){
+							if (err) { cb(err, null); return; }
+							cb(null, sensor.id);
+						});
+				})
+				.error(function() {
+					cb(err, null);
+				});
 			
 		} else {
-			cb('Device not supported', 'nok');
+			cb('Device not supported', null);
 		}
 	}
 	/**
@@ -109,10 +115,18 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	function getSensors(limit, offset, cb) {
 		if (!offset) offset = 0;
 		if (limit) {
-			models.Sensor.findAll({ offset: offset, limit: limit, raw: true }).success(cb)
+			models.Sensor.findAll({ offset: offset, limit: limit, raw: true })
+				.success(function(ans){cb(null, ans);})
+				.error(function() {
+					cb(err, null);
+				});
 		}
 		else {
-			models.Sensor.findAll({ offset: offset, raw: true }).success(cb)
+			models.Sensor.findAll({ offset: offset, raw: true })
+				.success(function(ans){cb(null, ans);})
+				.error(function() {
+					cb(err, null);
+				});
 		}
 	}
 	/**
@@ -129,7 +143,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['limit', 'offset']);
 		
 		writeHeaders(resp);
-		getSensors(getData.limit, getData.offset, function (sensors) {
+		getSensors(getData.limit, getData.offset, function (err, sensors) {
+			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ sensors: sensors })); 
 		});
 	}	
@@ -150,7 +165,11 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(Sensor)):	Callback
 	 */
 	function getSensor(id, cb) {
-		models.Sensor.find(id).success(cb);
+		models.Sensor.find(id)
+			.success(function(ans){cb(null, ans);})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceGetSensor
@@ -165,7 +184,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getSensor(getData.id, function(sensor) {
+		getSensor(getData.id, function(err, sensor) {
+			if (err) { error(2, resp, err); return; }
 			resp.end(sensor.values); 
 		});
 	}
@@ -179,9 +199,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(err, type):	Callback
 	 */
 	function getSensorType(id, cb) {
-		models.Sensor.find(id).success(function(sensor){
-			cb(sensor.type);
-		});
+		models.Sensor.find(id)
+			.success(function(sensor){
+				cb(null, sensor.type);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceGetSensorType
@@ -196,7 +220,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getSensorType(getData.id, function(type) {
+		getSensorType(getData.id, function(err, type) {
+			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ type: type })); 
 		});
 	}
@@ -210,9 +235,14 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(err, customId):	Callback
 	 */
 	function getSensorCustomId(id, cb) {
-		models.Sensor.find(id).success(function(sensor){
-			cb(sensor.customId);
-		});
+		models.Sensor.find(id)
+			.success(function(sensor){
+				cb(null, sensor.customId);
+			})
+			.error(function() {
+				cb(err, null);
+			});
+			
 	}
 	/**
 	 * serviceGetSensorCustomId
@@ -227,7 +257,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getSensorCustomId(getData.id, function(customId) {
+		getSensorCustomId(getData.id, function(err, customId) {
+			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ customId: customId })); 
 		});
 	}
@@ -241,9 +272,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool)):	Callback
 	 */
 	function deleteSensor(id, cb) {
-		models.Sensor.destroy({id: id}).success(function() {
-			cb(true);
-		});
+		models.Sensor.destroy({id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, false);
+			});
 	}
 	/**
 	 * serviceDeleteSensor
@@ -259,6 +294,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		
 		writeHeaders(resp);
 		deleteSensor(getData.id, function (bool) {
+			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
 		});
@@ -274,9 +310,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool)):		Callback
 	 */ 
 	function updateSensor(id, type, customId, cb) {
-		models.Sensor.update({type: type, customId: customId}, {id: id}).success(function() {
-			cb(true);
-		});
+		models.Sensor.update({type: type, customId: customId}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceUpdateSensor
@@ -292,7 +332,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var sensorData = parseRequest(req, ['id', 'type', 'customId']);
 		
 		writeHeaders(resp);
-		updateSensor(sensorData.id, sensorData.type, sensorData.customId, function(bool) {
+		updateSensor(sensorData.id, sensorData.type, sensorData.customId, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
 		});
@@ -308,9 +349,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool):		Callback
 	 */ 
 	function updateSensorType(id, type, cb) {
-			models.Sensor.update({type: type}, {id: id}).success(function() {
-			cb(true);
-		});
+			models.Sensor.update({type: type}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceUpdateSensorType
@@ -325,7 +370,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var sensorData = parseRequest(req, ['id', 'type']);
 		
 		writeHeaders(resp);
-		updateSensorType(sensorData.id, sensorData.type, function(bool) {
+		updateSensorType(sensorData.id, sensorData.type, function(err, bool) {
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
 		});
@@ -341,9 +386,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool):		Callback
 	 */ 
 	function updateSensorCustomId(id, customId, cb) {
-			models.Sensor.update({customId: customId}, {id: id}).success(function() {
-			cb(true);
-		});
+			models.Sensor.update({customId: customId}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceUpdateSensorCustomId
@@ -358,7 +407,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var sensorData = parseRequest(req, ['id', 'customId']);
 		
 		writeHeaders(resp);
-		updateSensorCustomId(sensorData.id, sensorData.customId, function(bool) {
+		updateSensorCustomId(sensorData.id, sensorData.customId, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
 		});
@@ -384,16 +434,20 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	function createActuator(type, customId, cb) {
 		if (actuatorsDrivers[type]) { // If this kind of device is supported:
 			// Add to DB:
-			models.Actuator.create({ customId: customId, type: type }).success(function(actuator) {
-				// Let the driver handle the integration of the device to the system:
-				actuatorsDrivers[type].add(customId, function(err){
-						if (err) { cb(err, null); return; }
-						cb(null, actuator.id);
-					});
-			});
+			models.Actuator.create({ customId: customId, type: type })
+				.success(function(actuator) {
+					// Let the driver handle the integration of the device to the system:
+					actuatorsDrivers[type].add(customId, function(err){
+							if (err) { cb(err, null); return; }
+							cb(null, actuator.id);
+						});
+				})
+				.error(function() {
+					cb(err, 'nok');
+				});
 			
 		} else {
-			cb('Device not supported', 'nok');
+			cb('Device not supported', null);
 		}
 	}
 	/**
@@ -428,10 +482,18 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	function getActuators(limit, offset, cb) {
 		if (!offset) offset = 0;
 		if (limit) {
-			models.Actuator.findAll({ offset: offset, limit: limit, raw: true }).success(cb)
+			models.Actuator.findAll({ offset: offset, limit: limit, raw: true })
+				.success(function(ans){cb(null, ans);})
+				.error(function() {
+					cb(err, null);
+				});
 		}
 		else {
-			models.Actuator.findAll({ offset: offset, raw: true }).success(cb)
+			models.Actuator.findAll({ offset: offset, raw: true })
+				.success(function(ans){cb(null, ans);})
+				.error(function() {
+					cb(err, null);
+				});
 		}
 	}
 	/**
@@ -448,7 +510,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['limit', 'offset']);
 		
 		writeHeaders(resp);
-		getActuators(getData.limit, getData.offset, function(actuators) {
+		getActuators(getData.limit, getData.offset, function(err, actuators) {
+			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ actuators: actuators })); 
 		});
 	}	
@@ -469,7 +532,11 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(Actuator)):	Callback
 	 */
 	function getActuator(id, cb) {
-		models.Actuator.find(id).success(cb);
+		models.Actuator.find(id)
+			.success(function(ans){cb(null, ans);})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceGetActuator
@@ -484,7 +551,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getActuator(getData.id, function(actuator) {
+		getActuator(getData.id, function(err, actuator) {
+			if (err) { error(2, resp, err); return; }
 			resp.end(actuator.values); 
 		});
 	}
@@ -498,9 +566,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(err, type):	Callback
 	 */
 	function getActuatorType(id, cb) {
-		models.Actuator.find(id).success(function(actuator){
-			cb(actuator.type);
-		});
+		models.Actuator.find(id)
+			.success(function(actuator){
+				cb(null, actuator.type);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceGetActuatorType
@@ -515,7 +587,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getActuatorType(getData.id, function(type) {
+		getActuatorType(getData.id, function(err, type) {
+			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ type: type })); 
 		});
 	}
@@ -529,9 +602,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(err, customId):	Callback
 	 */
 	function getActuatorCustomId(id, cb) {
-		models.Actuator.find(id).success(function(actuator){
-			cb(actuator.customId);
-		});
+		models.Actuator.find(id)
+			.success(function(actuator){
+				cb(null, actuator.customId);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceGetActuatorCustomId
@@ -546,7 +623,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getActuatorCustomId(getData.id, function(customId) {
+		getActuatorCustomId(getData.id, function(err, customId) {
+			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ customId: customId })); 
 		});
 	}
@@ -560,9 +638,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool)):	Callback
 	 */
 	function deleteActuator(id, cb) {
-		models.Actuator.destroy({id: id}).success(function() {
-			cb(true);
-		});
+		models.Actuator.destroy({id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceDeleteActuator
@@ -577,7 +659,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		deleteActuator(getData.id, function (bool) {
+		deleteActuator(getData.id, function (err, bool) {
+			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
 		});
@@ -593,9 +676,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool)):		Callback
 	 */ 
 	function updateActuator(id, type, customId, cb) {
-		models.Actuator.update({type: type, customId: customId}, {id: id}).success(function() {
-			cb(true);
-		});
+		models.Actuator.update({type: type, customId: customId}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceUpdateActuator
@@ -611,7 +698,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var actuatorData = parseRequest(req, ['id', 'type', 'customId']);
 		
 		writeHeaders(resp);
-		updateActuator(actuatorData.id, actuatorData.type, actuatorData.customId, function(bool) {
+		updateActuator(actuatorData.id, actuatorData.type, actuatorData.customId, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
 		});
@@ -627,9 +715,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool):		Callback
 	 */ 
 	function updateActuatorType(id, type, cb) {
-			models.Actuator.update({type: type}, {id: id}).success(function() {
-			cb(true);
-		});
+			models.Actuator.update({type: type}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceUpdateActuatorType
@@ -644,7 +736,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var actuatorData = parseRequest(req, ['id', 'type']);
 		
 		writeHeaders(resp);
-		updateActuatorType(actuatorData.id, actuatorData.type, function(bool) {
+		updateActuatorType(actuatorData.id, actuatorData.type, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
 		});
@@ -660,9 +753,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool):		Callback
 	 */ 
 	function updateActuatorCustomId(id, customId, cb) {
-			models.Actuator.update({customId: customId}, {id: id}).success(function() {
-			cb(true);
-		});
+			models.Actuator.update({customId: customId}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceUpdateActuatorCustomId
@@ -677,12 +774,548 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var actuatorData = parseRequest(req, ['id', 'customId']);
 		
 		writeHeaders(resp);
-		updateActuatorCustomId(actuatorData.id, actuatorData.customId, function(bool) {
+		updateActuatorCustomId(actuatorData.id, actuatorData.customId, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
 		});
 	}	
 	 
+
+	/*
+	 * ------------------------------------------
+	 * MEASURES - CRUD Services
+	 * ------------------------------------------
+	 */
+	 
+	/**
+	 * createMeasure
+	 * ====
+	 * Add a measure to the DB and system, if there is a driver to handle it.
+	 * Parameters:
+	 *	- value (float): 				Value
+	 * 	- sensorId (int):				ID of the sensor
+	 * 	- time (Date):					Date
+	 *	- measureType (String): 		Type of measure
+	 *	- cb (Function(Erreur, int)):		Callback
+	 */
+	function createMeasure(value, sensorId, time, measureType, cb) {
+		models.Measure.create({ value: value, measureType: measureType, time: time })
+			.success(function(measure) {
+				measure.setSensor(sensorId)
+					.success(function() {
+						cb(null, measure.id);
+					})
+					.error(function(err) {
+						measure.destroy().success(function() {
+							cb(err, null);
+						});
+					});
+			})
+			.error(function() {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceCreateMeasure
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 *		- value (float): 				Value				- required
+	 * 		- sensorId (int):				ID of the sensor	- required
+	 * 		- time (Date):					Date				- required
+	 *		- measureType (String): 		Type of measure		- required
+	 */
+	function serviceCreateMeasure(req, resp) {
+		logger.info("<Service> CreateMeasure.");
+		var measureData = parseRequest(req, ['value', 'sensorId', 'time', 'measureType']);
+		
+		writeHeaders(resp);
+		createMeasure(measureData.value, measureData.sensorId, measureData.time, measureData.measureType, function(err, id) {
+			if (err) { error(10, resp, err); return; }
+			resp.end(JSON.stringify({ status: 'ok', id: id }));
+		});
+	}
+	 
+	/**
+	 * getMeasures
+	 * ====
+	 * Returns a list of measures.
+	 * Parameters:
+	 *	- limit (int): 					Number max of measures to return
+	 *	- offset (int): 				Number of the measure to start with
+	 *	- cb (Function(err, Measure[])):	Callback
+	 */
+	function getMeasures(limit, offset, cb) {
+		if (!offset) offset = 0;
+		if (limit) {
+			models.Measure.findAll({ offset: offset, limit: limit, raw: true })
+				.success(function(ans){cb(null, ans);})
+				.error(function() {
+					cb(err, null);
+				});
+		}
+		else {
+			models.Measure.findAll({ offset: offset, raw: true })
+				.success(function(ans){cb(null, ans);})
+				.error(function() {
+					cb(err, null);
+				});
+		}
+	}
+	/**
+	 * serviceGetMeasures
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 *		- limit (int): 		Number max to return				- optional
+	 *		- offset (int): 	Number of the measure to start with	- optional
+	 */
+	function serviceGetMeasures(req, resp) {
+		logger.info("<Service> GetMeasures.");
+		var getData = parseRequest(req, ['limit', 'offset']);
+		
+		writeHeaders(resp);
+		getMeasures(getData.limit, getData.offset, function (err, measures) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ measures: measures })); 
+		});
+	}	
+	 
+
+	/*
+	 * ------------------------------------------
+	 * MEASURE Services
+	 * ------------------------------------------
+	 */
+	 
+	/**
+	 * getMeasure
+	 * ====
+	 * Returns the Measure corresponding to the given id
+	 * Parameters:
+	 *	- id (int): 					Id
+	 *	- cb (Function(Measure)):	Callback
+	 */
+	function getMeasure(id, cb) {
+		models.Measure.find(id)
+			.success(function(ans){cb(null, ans);})
+			.error(function() {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetMeasure
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetMeasure(req, resp) {
+		logger.info("<Service> GetMeasure.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getMeasure(getData.id, function(err, measure) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(measure.values); 
+		});
+	}
+	 
+	/**
+	 * getMeasureMeasureType
+	 * ====
+	 * Returns the Measure's measureType
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, measureType):	Callback
+	 */
+	function getMeasureMeasureType(id, cb) {
+		models.Measure.find(id)
+			.success(function(measure){
+				cb(null, measure.measureType);
+			})
+			.error(function() {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetMeasureMeasureType
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetMeasureMeasureType(req, resp) {
+		logger.info("<Service> GetMeasureMeasureType.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getMeasureMeasureType(getData.id, function(err, measureType) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ measureType: measureType })); 
+		});
+	}
+	
+	/**
+	 * getMeasureValue
+	 * ====
+	 * Returns the Measure's value
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, value):	Callback
+	 */
+	function getMeasureValue(id, cb) {
+		models.Measure.find(id)
+			.success(function(measure){
+				cb(null, measure.value);
+			})
+			.error(function() {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetMeasureValue
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetMeasureValue(req, resp) {
+		logger.info("<Service> GetMeasureValue.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getMeasureValue(getData.id, function(err, value) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ value: value })); 
+		});
+	}
+	
+	/**
+	 * getMeasureTime
+	 * ====
+	 * Returns the Measure's time
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, time):	Callback
+	 */
+	function getMeasureTime(id, cb) {
+		models.Measure.find(id)
+			.success(function(measure){
+				cb(null, measure.time);
+			})
+			.error(function() {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetMeasureTime
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetMeasureTime(req, resp) {
+		logger.info("<Service> GetMeasureTime.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getMeasureTime(getData.id, function(err, time) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ time: time })); 
+		});
+	}
+	
+	
+	/**
+	 * getMeasureSensor
+	 * ====
+	 * Returns the Measure's sensor
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, sensor):	Callback
+	 */
+	function getMeasureSensor(id, cb) {
+		models.Measure.find(id)
+			.success(function(measure){
+				measure.getSensor()
+					.success(function(sensor){
+						cb(null, sensor);
+					})
+				.error(function() {
+					cb(err, null);
+				});
+			})
+			.error(function() {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetMeasureSensor
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetMeasureSensor(req, resp) {
+		logger.info("<Service> GetMeasureSensor.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getMeasureSensor(getData.id, function(err, sensor) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ sensor: sensor })); 
+		});
+	}
+	
+	
+	/**
+	 * deleteMeasure
+	 * ====
+	 * Delete the Measure corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 			ID
+	 *	- cb (Function(bool)):	Callback
+	 */
+	function deleteMeasure(id, cb) {
+		models.Measure.destroy({id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceDeleteMeasure
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceDeleteMeasure(req, resp) {
+		logger.info("<Service> DeleteMeasure.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		deleteMeasure(getData.id, function (err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+	
+	/**
+	 * updateMeasure
+	 * ====
+	 * Update the Measure corresponding to the given id
+	 * Parameters:
+	 *	- id (float): 				ID
+	 *	- value (float): 			Value
+	 * 	- sensorId (int):			ID of the sensor
+	 * 	- time (Date):				Date
+	 *	- measureType (String): 	Type of measure
+	 *	- cb (Function(bool)):		Callback
+	 */ 
+	function updateMeasure(id, value, sensorId, time, measureType, cb) {
+		models.Measure.update({ value: value, measureType: measureType, time: time }, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceUpdateMeasure
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		- value (float): 			Value
+	 * 		- sensorId (int):			ID of the sensor
+	 * 		- time (Date):				Date
+	 *		- measureType (String): 	Type of measure 	- required
+	 */
+	function serviceUpdateMeasure(req, resp) {
+		logger.info("<Service> UpdateMeasure.");
+		var measureData = parseRequest(req, ['id', 'value', 'sensorId', 'time', 'measureType']);
+		
+		writeHeaders(resp);
+		updateMeasure(measureData.id, measureData.value, measureData.sensorId, measureData.time, measureData.measureType, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+		
+	/**
+	 * updateMeasureMeasureType
+	 * ====
+	 * Update the measureType of the Measure corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- measureType (String): 	MeasureType to change
+	 *	- cb (Function(bool):		Callback
+	 */ 
+	function updateMeasureMeasureType(id, measureType, cb) {
+			models.Measure.update({measureType: measureType}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceUpdateMeasureMeasureType
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		- measureType (String): 	MeasureType 		- required
+	 */
+	function serviceUpdateMeasureMeasureType(req, resp) {
+		logger.info("<Service> UpdateMeasureMeasureType.");
+		var measureData = parseRequest(req, ['id', 'measureType']);
+		
+		writeHeaders(resp);
+		updateMeasureMeasureType(measureData.id, measureData.measureType, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+	
+	/**
+	 * updateMeasureValue
+	 * ====
+	 * Update the value of the Measure corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- value (float): 			Value to change
+	 *	- cb (Function(bool):		Callback
+	 */ 
+	function updateMeasureValue(id, value, cb) {
+			models.Measure.update({value: value}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceUpdateMeasureValue
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		- value (float): 	Value 		- required
+	 */
+	function serviceUpdateMeasureValue(req, resp) {
+		logger.info("<Service> UpdateMeasureValue.");
+		var measureData = parseRequest(req, ['id', 'value']);
+		
+		writeHeaders(resp);
+		updateMeasureValue(measureData.id, measureData.value, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}	
+	
+	/**
+	 * updateMeasureTime
+	 * ====
+	 * Update the time of the Measure corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- time (Date): 				Time to change
+	 *	- cb (Function(bool):		Callback
+	 */ 
+	function updateMeasureTime(id, time, cb) {
+			models.Measure.update({time: time}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceUpdateMeasureTime
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		- time (Date): 	Time 		- required
+	 */
+	function serviceUpdateMeasureTime(req, resp) {
+		logger.info("<Service> UpdateMeasureTime.");
+		var measureData = parseRequest(req, ['id', 'time']);
+		
+		writeHeaders(resp);
+		updateMeasureTime(measureData.id, measureData.time, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+			
+	/**
+	 * updateMeasureSensor
+	 * ====
+	 * Update the sensor of the Measure corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- sensorId (int): 			ID of new Sensor
+	 *	- cb (Function(bool):		Callback
+	 */ 
+	function updateMeasureSensor(id, sensorId, cb) {
+		models.Measure.find(id)
+			.success(function(measure){
+				measure.setSensor(sensorId)
+					.success(function(){
+						cb(null, true);
+					})
+				.error(function() {
+					cb(err, false);
+				});
+			})
+			.error(function() {
+				cb(err, false);
+			});
+	}
+	/**
+	 * serviceUpdateMeasureSensor
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		- sensorId (int): 	ID of new Sensor - required
+	 */
+	function serviceUpdateMeasureSensor(req, resp) {
+		logger.info("<Service> UpdateMeasureSensor.");
+		var measureData = parseRequest(req, ['id', 'sensorId']);
+		
+		writeHeaders(resp);
+		updateMeasureSensor(measureData.id, measureData.sensorId, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}	
+
 
 	/*
 	 * ------------------------------------------
@@ -699,9 +1332,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(Erreur, int)):		Callback
 	 */
 	function createRule(name, cb) {
-		models.Rule.create({ name: name }).success(function(rule) {
-			cb(null, rule.id);
-		});
+		models.Rule.create({ name: name })
+			.success(function(rule) {
+				cb(null, rule.id);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceCreateRule
@@ -735,10 +1372,18 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	function getRules(limit, offset, cb) {
 		if (!offset) offset = 0;
 		if (limit) {
-			models.Rule.findAll({ offset: offset, limit: limit, raw: true }).success(cb)
+			models.Rule.findAll({ offset: offset, limit: limit, raw: true })
+				.success(function(ans){cb(null, ans);})
+				.error(function() {
+					cb(err, null);
+				});
 		}
 		else {
-			models.Rule.findAll({ offset: offset, raw: true }).success(cb)
+			models.Rule.findAll({ offset: offset, raw: true })
+				.success(function(ans){cb(null, ans);})
+				.error(function() {
+					cb(err, null);
+				});
 		}
 	}
 	/**
@@ -755,7 +1400,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['limit', 'offset']);
 		
 		writeHeaders(resp);
-		getRules(getData.limit, getData.offset, function(rules) {
+		getRules(getData.limit, getData.offset, function(err, rules) {
+			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ rules: rules })); 
 		});
 	}	
@@ -776,7 +1422,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(Rule)):	Callback
 	 */
 	function getRule(id, cb) {
-		models.Rule.find(id).success(cb);
+		models.Rule.find(id).success(function(ans){cb(null, ans);});
 	}
 	/**
 	 * serviceGetRule
@@ -791,7 +1437,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getRule(getData.id, function(rule) {
+		getRule(getData.id, function(err, rule) {
+			if (err) { error(2, resp, err); return; }
 			resp.end(rule.values); 
 		});
 	}
@@ -805,9 +1452,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(err, name):	Callback
 	 */
 	function getRuleName(id, cb) {
-		models.Rule.find(id).success(function(rule){
-			cb(rule.name);
-		});
+		models.Rule.find(id)
+			.success(function(rule){
+				cb(null, rule.name);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceGetRuleName
@@ -822,7 +1473,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getRuleName(getData.id, function(name) {
+		getRuleName(getData.id, function(err, name) {
+			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ name: name })); 
 		});
 	}
@@ -836,9 +1488,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool)):	Callback
 	 */
 	function deleteRule(id, cb) {
-		models.Rule.destroy({id: id}).success(function() {
-			cb(true);
-		});
+		models.Rule.destroy({id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceDeleteRule
@@ -853,7 +1509,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		deleteRule(getData.id, function (bool) {
+		deleteRule(getData.id, function (err, bool) {
+			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
 		});
@@ -868,9 +1525,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool)):		Callback
 	 */ 
 	function updateRule(id, name, cb) {
-		models.Rule.update({name: name}, {id: id}).success(function() {
-			cb(true);
-		});
+		models.Rule.update({name: name}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceUpdateRule
@@ -885,7 +1546,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var ruleData = parseRequest(req, ['id', 'name']);
 		
 		writeHeaders(resp);
-		updateRule(ruleData.id, ruleData.name, function(bool) {
+		updateRule(ruleData.id, ruleData.name, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
 		});
@@ -901,9 +1563,13 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- cb (Function(bool):		Callback
 	 */ 
 	function updateRuleName(id, name, cb) {
-			models.Rule.update({name: name}, {id: id}).success(function() {
-			cb(true);
-		});
+			models.Rule.update({name: name}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function() {
+				cb(err, null);
+			});
 	}
 	/**
 	 * serviceUpdateRuleName
@@ -918,7 +1584,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var ruleData = parseRequest(req, ['id', 'name']);
 		
 		writeHeaders(resp);
-		updateRuleName(ruleData.id, ruleData.name, function(bool) {
+		updateRuleName(ruleData.id, ruleData.name, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
 		});
