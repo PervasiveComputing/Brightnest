@@ -7,10 +7,10 @@
 
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define('Actuator',
-      { id: {
-            type: DataTypes.INTEGER,
+      { customId: {
+            type: DataTypes.STRING(32),
             validate: {
-                notEmpty: { msg: "Field id cannot be empty" }
+                notEmpty: { msg: "Field customId cannot be empty" }
             }
         },
         type: {

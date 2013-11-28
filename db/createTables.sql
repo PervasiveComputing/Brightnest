@@ -9,10 +9,12 @@ DROP TABLE IF EXISTS actuator;
 
 CREATE TABLE Actuators (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customId VARCHAR(32),
         type VARCHAR(32)
 );
-CREATE TABLE sensor (
+CREATE TABLE Sensors (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customId VARCHAR(32),
         type VARCHAR(32)
 );
 
