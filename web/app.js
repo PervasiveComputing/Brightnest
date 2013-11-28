@@ -29,17 +29,34 @@ logger.warn("SSL activated : " + sslActivated);
  * DB connection
  * ------------------------
  */
-// TO DO
+var Sequelize = require('sequelize-sqlite').sequelize;
 
+var sequelize = new Sequelize(config.getProperty("db.name"), config.getProperty("db.username"), config.getProperty("db.password"), {
+  dialect: 'sqlite',
+  storage: config.getProperty("db.uri")
+})
+
+
+
+/* ------------------------
+ * Devices Drivers 
+ * ------------------------
+ */
+
+// TO DO
+var	sensorsDrivers = [],
+	actuatorsDrivers = [];
+	
 
 /* ------------------------
  * MVC
  * ------------------------
  */
 
-var	models = require('./models'),
-	services = require("./services")(models),
+var	models = require('./models')(sequelize),
+	services = require("./services")(models, sensorsDrivers, actuatorsDrivers),
 	views = require("./views");
+	
 	
 /* ------------------------
  * REST Server config
