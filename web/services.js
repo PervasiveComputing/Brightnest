@@ -9,7 +9,7 @@
 
 module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 
-	function error(code, resp) {
+	function error(code, resp, customMsg) {
 		var result = {};
 		result.error = {};
 		result.error.code = code;
@@ -26,7 +26,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 				result.error.msg = "DB error";
 				break;
 			default:
-				result.error.msg = "Unknow error";
+				result.error.msg = customMsg?customMsg:"Unknow error";
 		}
 
 		logger.error("Error function with message : " + result.error.msg)
@@ -91,9 +91,9 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var sensorData = parseRequest(req, ['type', 'customId']);
 		
 		writeHeaders(resp);
-		createSensor(sensorData.type, sensorData.customId, function(err, id) {
-			if (err) error(2, resp);
-			else resp.end(JSON.stringify({ status: 'ok', id: id }));
+		createSensor(sensorData.type, sensorData.customId,function(err, id) {
+			if (err) { error(10, resp, err); return; }
+			resp.end(JSON.stringify({ status: 'ok', id: id }));
 		});
 	}
 	 
@@ -129,9 +129,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['limit', 'offset']);
 		
 		writeHeaders(resp);
-		getSensors(getData.limit, getData.offset, function (err, sensors) {
-			if (err) error(2, resp);
-			else resp.end(JSON.stringify({ sensors: sensors })); 
+		getSensors(getData.limit, getData.offset, function (sensors) {
+			resp.end(JSON.stringify({ sensors: sensors })); 
 		});
 	}	
 	 
@@ -166,9 +165,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getSensor(getData.id, function (err, sensor) {
-			if (err) error(2, resp);
-			else resp.end(sensor.values); 
+		getSensor(getData.id, function(sensor) {
+			resp.end(sensor.values); 
 		});
 	}
 	 
@@ -198,9 +196,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getSensorType(getData.id, function (err, type) {
-			if (err) error(2, resp);
-			else resp.end(JSON.stringify({ type: type })); 
+		getSensorType(getData.id, function(type) {
+			resp.end(JSON.stringify({ type: type })); 
 		});
 	}
 	
@@ -230,9 +227,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getSensorCustomId(getData.id, function (err, customId) {
-			if (err) error(2, resp);
-			else resp.end(JSON.stringify({ customId: customId })); 
+		getSensorCustomId(getData.id, function(customId) {
+			resp.end(JSON.stringify({ customId: customId })); 
 		});
 	}
 	
@@ -415,8 +411,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		
 		writeHeaders(resp);
 		createActuator(actuatorData.type, actuatorData.customId, function(err, id) {
-			if (err) error(2, resp);
-			else resp.end(JSON.stringify({ status: 'ok', id: id }));
+			if (err) { error(10, resp, err); return; }
+			resp.end(JSON.stringify({ status: 'ok', id: id }));
 		});
 	}
 	 
@@ -452,9 +448,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['limit', 'offset']);
 		
 		writeHeaders(resp);
-		getActuators(getData.limit, getData.offset, function (err, actuators) {
-			if (err) error(2, resp);
-			else resp.end(JSON.stringify({ actuators: actuators })); 
+		getActuators(getData.limit, getData.offset, function(actuators) {
+			resp.end(JSON.stringify({ actuators: actuators })); 
 		});
 	}	
 	 
@@ -489,9 +484,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getActuator(getData.id, function (err, actuator) {
-			if (err) error(2, resp);
-			else resp.end(actuator.values); 
+		getActuator(getData.id, function(actuator) {
+			resp.end(actuator.values); 
 		});
 	}
 	 
@@ -521,9 +515,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getActuatorType(getData.id, function (err, type) {
-			if (err) error(2, resp);
-			else resp.end(JSON.stringify({ type: type })); 
+		getActuatorType(getData.id, function(type) {
+			resp.end(JSON.stringify({ type: type })); 
 		});
 	}
 	
@@ -553,9 +546,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		var getData = parseRequest(req, ['id']);
 		
 		writeHeaders(resp);
-		getActuatorCustomId(getData.id, function (err, customId) {
-			if (err) error(2, resp);
-			else resp.end(JSON.stringify({ customId: customId })); 
+		getActuatorCustomId(getData.id, function(customId) {
+			resp.end(JSON.stringify({ customId: customId })); 
 		});
 	}
 	
@@ -691,7 +683,248 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		});
 	}	
 	 
+
+	/*
+	 * ------------------------------------------
+	 * RULES - CRUD Services
+	 * ------------------------------------------
+	 */
 	 
+	/**
+	 * createRule
+	 * ====
+	 * Add a rule to the DB and system.
+	 * Parameters:
+	 *	- name (String): 					Name of the rule
+	 *	- cb (Function(Erreur, int)):		Callback
+	 */
+	function createRule(name, cb) {
+		models.Rule.create({ name: name }).success(function(rule) {
+			cb(null, rule.id);
+		});
+	}
+	/**
+	 * serviceCreateRule
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 * 		- name (String): 			Name of the rule			- required
+	 *		- customId (String): 		Custom ID for the driver 	- required
+	 */
+	function serviceCreateRule(req, resp) {
+		logger.info("<Service> CreateRule.");
+		var ruleData = parseRequest(req, ['name']);
+		
+		writeHeaders(resp);
+		createRule(ruleData.name, function(err, id) {
+			if (err) { error(10, resp, err); return; }
+			resp.end(JSON.stringify({ status: 'ok', id: id }));
+		});
+	}
+	 
+	/**
+	 * getRules
+	 * ====
+	 * Returns a list of rules.
+	 * Parameters:
+	 *	- limit (int): 					Number max of rules to return
+	 *	- offset (int): 				Number of the rule to start with
+	 *	- cb (Function(err, Rule[])):	Callback
+	 */
+	function getRules(limit, offset, cb) {
+		if (!offset) offset = 0;
+		if (limit) {
+			models.Rule.findAll({ offset: offset, limit: limit, raw: true }).success(cb)
+		}
+		else {
+			models.Rule.findAll({ offset: offset, raw: true }).success(cb)
+		}
+	}
+	/**
+	 * serviceGetRules
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 *		- limit (int): 		Number max to return				- optional
+	 *		- offset (int): 	Number of the rule to start with	- optional
+	 */
+	function serviceGetRules(req, resp) {
+		logger.info("<Service> GetRules.");
+		var getData = parseRequest(req, ['limit', 'offset']);
+		
+		writeHeaders(resp);
+		getRules(getData.limit, getData.offset, function(rules) {
+			resp.end(JSON.stringify({ rules: rules })); 
+		});
+	}	
+	 
+
+	/*
+	 * ------------------------------------------
+	 * RULE Services
+	 * ------------------------------------------
+	 */
+	 
+	/**
+	 * getRule
+	 * ====
+	 * Returns the Rule corresponding to the given id
+	 * Parameters:
+	 *	- id (int): 			Id
+	 *	- cb (Function(Rule)):	Callback
+	 */
+	function getRule(id, cb) {
+		models.Rule.find(id).success(cb);
+	}
+	/**
+	 * serviceGetRule
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetRule(req, resp) {
+		logger.info("<Service> GetRule.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getRule(getData.id, function(rule) {
+			resp.end(rule.values); 
+		});
+	}
+	 
+	/**
+	 * getRuleName
+	 * ====
+	 * Returns the Rule's name
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, name):	Callback
+	 */
+	function getRuleName(id, cb) {
+		models.Rule.find(id).success(function(rule){
+			cb(rule.name);
+		});
+	}
+	/**
+	 * serviceGetRuleName
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetRuleName(req, resp) {
+		logger.info("<Service> GetRuleName.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getRuleName(getData.id, function(name) {
+			resp.end(JSON.stringify({ name: name })); 
+		});
+	}
+	
+	/**
+	 * deleteRule
+	 * ====
+	 * Delete the Rule corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 			ID
+	 *	- cb (Function(bool)):	Callback
+	 */
+	function deleteRule(id, cb) {
+		models.Rule.destroy({id: id}).success(function() {
+			cb(true);
+		});
+	}
+	/**
+	 * serviceDeleteRule
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceDeleteRule(req, resp) {
+		logger.info("<Service> DeleteRule.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		deleteRule(getData.id, function (bool) {
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+	
+	/**
+	 * updateRule
+	 * ====
+	 * Update the Rule corresponding to the given id
+	 * Parameters:
+	 *	- name (String): 			Name of rule
+	 *	- cb (Function(bool)):		Callback
+	 */ 
+	function updateRule(id, name, cb) {
+		models.Rule.update({name: name}, {id: id}).success(function() {
+			cb(true);
+		});
+	}
+	/**
+	 * serviceUpdateRule
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 * 		- name (String): 					Name of rule				- required
+	 */
+	function serviceUpdateRule(req, resp) {
+		logger.info("<Service> UpdateRule.");
+		var ruleData = parseRequest(req, ['id', 'name']);
+		
+		writeHeaders(resp);
+		updateRule(ruleData.id, ruleData.name, function(bool) {
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+		
+	/**
+	 * updateRuleName
+	 * ====
+	 * Update the name of the Rule corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- name (String): 			Name to change
+	 *	- cb (Function(bool):		Callback
+	 */ 
+	function updateRuleName(id, name, cb) {
+			models.Rule.update({name: name}, {id: id}).success(function() {
+			cb(true);
+		});
+	}
+	/**
+	 * serviceUpdateRuleName
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		- name (String): 	Name 		- required
+	 */
+	function serviceUpdateRuleName(req, resp) {
+		logger.info("<Service> UpdateRuleName.");
+		var ruleData = parseRequest(req, ['id', 'name']);
+		
+		writeHeaders(resp);
+		updateRuleName(ruleData.id, ruleData.name, function(bool) {
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+	 
+	 	 
 	/*
 	 * ------------------------------------------
 	 * ROUTING
@@ -734,6 +967,20 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		'GET'	: serviceGetActuatorCustomId,
 		'PUT'	: serviceUpdateActuatorCustomId
 	};
-	
+
+	this.rest['rules'] = {
+		'POST'	: serviceCreateRule,
+		'GET'	: serviceGetRules
+	};
+	this.rest['rule/:id'] = {
+		'GET'	: serviceGetRule,
+		'DELETE': serviceDeleteRule,
+		'PUT'	: serviceUpdateRule
+	};
+	this.rest['rule/:id/name'] = {
+		'GET'	: serviceGetRuleName,
+		'PUT'	: serviceUpdateRuleName
+	};
+		
 	return this;
 };
