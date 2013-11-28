@@ -33,6 +33,7 @@ var Sequelize = require('sequelize-sqlite').sequelize;
 
 var sequelize = new Sequelize(config.getProperty("db.name"), config.getProperty("db.username"), config.getProperty("db.password"), {
   dialect: 'sqlite',
+  omitNull: true,
   storage: config.getProperty("db.uri")
 })
 
@@ -42,11 +43,31 @@ var sequelize = new Sequelize(config.getProperty("db.name"), config.getProperty(
  * Devices Drivers 
  * ------------------------
  */
-
-// TO DO
-var	sensorsDrivers = [],
+ 
+// Loading the drivers modules:
+var	fs = require('fs'),
+	actuatorsDriversFiles = fs.readdirSync('./drivers/actuators/'),
+	sensorsDriversFiles = fs.readdirSync('./drivers/sensors/'),
+	
+	sensorsDrivers = [],
 	actuatorsDrivers = [];
 	
+for(var f in actuatorsDriversFiles) {
+	var extension = actuatorsDriversFiles[f].slice(actuatorsDriversFiles[f].length-3, actuatorsDriversFiles[f].length);
+	if (extension == '.js') {
+		var type = actuatorsDriversFiles[f].slice(0, actuatorsDriversFiles[f].length-3); // Removing the '.js' extension 
+		actuatorsDrivers[type] = require('./drivers/actuators/'+actuatorsDriversFiles[f]);
+		logger.info('Actuators Driver - ' + type);
+	}
+}
+for(var f in sensorsDriversFiles) {
+	var extension = sensorsDriversFiles[f].slice(sensorsDriversFiles[f].length-3, sensorsDriversFiles[f].length);
+	if (extension == '.js') {
+		var type = sensorsDriversFiles[f].slice(0, sensorsDriversFiles[f].length-3); // Removing the '.js' extension 
+		sensorsDrivers[type] = require('./drivers/sensors/'+sensorsDriversFiles[f]);
+		logger.info('Sensors Driver - ' + type);
+	}
+}
 
 /* ------------------------
  * MVC
@@ -113,19 +134,19 @@ for (var url in services.rest) {
 	for (var action in services.rest[url]) {
 		if (action == 'POST') {
 			html.post('/api/'+url, services.rest[url][action]);
-			logger.debug('REST routing - '+url+' / POST defined');
+			logger.info('REST routing - '+url+' / POST defined');
 		}
 		else if (action == 'GET') {
 			html.get('/api/'+url, services.rest[url][action]);
-			logger.debug('REST routing - '+url+' / GET defined');
+			logger.info('REST routing - '+url+' / GET defined');
 		}
 		else if (action == 'PUT') {
 			html.put('/api/'+url, services.rest[url][action]);
-			logger.debug('REST routing - '+url+' / PUT defined');
+			logger.info('REST routing - '+url+' / PUT defined');
 		}
 		else if (action == 'DELETE') {
 			html.delete('/api/'+url, services.rest[url][action]);
-			logger.debug('REST routing - '+url+' / DELETE defined');
+			logger.info('REST routing - '+url+' / DELETE defined');
 		}
 		else {
 			logger.error('Unknown HTTP action "'+action+'" for the URL '+url);

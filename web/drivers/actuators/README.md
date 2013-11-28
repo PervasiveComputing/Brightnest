@@ -10,3 +10,5 @@ To support a new actuator, simply create in this folder a *node* module with the
     - Parameters:
         - customId (String):		Custom ID of the new device for the driver
         - cb (Function(error)):		Callback with an error or *null* as parameter
+
+The module's file will be used as type of the device (ex: `sunspot.js` will be used as driver for the actuators with `sunspot` as `type`).
