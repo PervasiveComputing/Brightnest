@@ -70,8 +70,32 @@ function viewHelp(req, res) {
 	res.render('help', {title: "Help", rest: rest});
 }
 
+function viewBehaviors(req, res) {
+	logger.debug("<View> Viewing behaviors page.");
+	res.render('behaviours', {title: "Behaviours", rest: rest});
+}
+
+function viewRecordsTemperature(req, res) {
+	logger.debug("<View> Viewing temperature records page.");
+	res.render('records_temperature', {title: "Temperature records", rest: rest});
+}
+
+function viewRecordsLigths(req, res) {
+	logger.debug("<View> Viewing ligths records page.");
+	res.render('records_ligths', {title: "Ligths records", rest: rest});
+}
+
+function viewAbout(req, res) {
+	logger.debug("<View> Viewing about page.");
+	res.render('about', {title: "About", rest: rest});
+}
+
 exports.index = viewIndex;
 exports.signin = viewSignin;
 exports.login = viewLogin;
 exports.notfound = viewNotfound;
 exports.help = viewHelp;
+exports.behaviors = viewBehaviors;
+exports.records_temperature = viewRecordsTemperature;
+exports.records_ligths = viewRecordsLigths;
+exports.about = viewAbout;

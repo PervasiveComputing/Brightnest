@@ -1,52 +1,59 @@
 <!DOCTYPE html>
-<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
-<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
-<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
-    <head>
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">     
-		<title>3Dpal - <%= title %></title>
-        <meta name="description" content="Collaborative 3D Suite">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="en" >
 
-        <!-- Place favicon.ico and apple-touch-icon.png in the root directory -->
+<head>
 
-        <link rel="stylesheet" href="css/normalize.css">
-		<link rel="stylesheet" type="text/css" href="css/main.css" />
-		
-        <script src="script/lib/modernizr-2.6.2.min.js"></script>
-        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-        <script>window.jQuery || document.write('<script src="js/vendor/jquery-1.10.2.min.js"><\/script>')</script>
-		<script type="text/javascript">
-			// ---- GLOBAL VAR
-			var rest = "<%= rest %>";
-		</script>
-    </head>
-    <body>
-        <!--[if lt IE 7]>
-            <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
-        <![endif]-->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <link rel="stylesheet" href="css/foundation.css">
+  <link rel="stylesheet" href="css/custom.css">
+  <title><%=title%></title>
+  <script src="script/vendor/custom.modernizr.js"></script>
 
-		<header class="header" role="banner">
-			<h1><a href="/">3Dpal</a></h1>
-		</header>
+</head>
 
-		<div class="container">
 
-			<%- body %>
+<body>
 
-		</div>
-		<footer>&copy; Johannes Baldinger (<a href="http://github.com/johannes-baldinger" title="Johannes Baldinger's Github Account">git:johannes-baldinger</a>) & Benjamin Bill Planche (<a href="http://github.com/Aldream" title="Benjamin Bill Planche's Github Account">git:Aldream</a>)</footer>
+	<!--top-bar-->
+	<nav class="top-bar" data-options="is_hover:false">
 
-        <!-- Google Analytics: change UA-XXXXX-X to be your site's ID. -->
-        <script>
-            (function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=
-            function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;
-            e=o.createElement(i);r=o.getElementsByTagName(i)[0];
-            e.src='//www.google-analytics.com/analytics.js';
-            r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));
-            ga('create','UA-XXXXX-X');ga('send','pageview');
-        </script>
-    </body>
+        <ul class="title-area">
+          <li class="name">
+            <h1><a href="/">Home</a></h1>
+          </li>
+          <li class="toggle-topbar menu-icon"><a href="#"><span></span></a></li>
+        </ul>
+
+        <section class="top-bar-section">
+          <ul class="right">
+            <li class="divider hide-for-small"></li>
+            <li><a href="/behaviors">Behaviors</a></li>
+            <li class="has-dropdown"><a href="#">Records</a>
+              <ul class="dropdown">
+                <li><a href="/records_temperature">Temperature</a></li>
+                <li class="divider"></li>
+                <li><a href="/records_ligths">Light</a></li>
+              </ul>
+            </li>
+          </ul>
+        </section>
+
+    </nav>
+
+	<%- body%>
+
+	<!--scripts-->
+	<script>
+	  	document.write('<script src=' +
+	    ('__proto__' in {} ? 'script/vendor/zepto' : 'script/vendor/jquery') + '.js><\/script>')
+  	</script>
+  
+  	<script src="script/foundation.min.js"></script>
+
+  	<script>
+    	$(document).foundation();
+  	</script>
+
+</body>
 </html>

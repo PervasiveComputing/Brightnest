@@ -163,6 +163,11 @@ viewHandler["/(index)?"] = views.index;
 viewHandler["/login"] = views.login;
 viewHandler["/signin"] = views.signin;
 viewHandler["/help"] = views.help;
+viewHandler["/behaviors"] = views.behaviors;
+viewHandler["/records_temperature"] = views.records_temperature;
+viewHandler["/records_ligths"] = views.records_ligths;
+viewHandler["/about"] = views.about;
+
 
 viewHandler["*"] = views.notfound;
 

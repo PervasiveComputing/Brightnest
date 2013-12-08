@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<% layout('layout') -%>
+
+<body>
+
+	<div class="row">
+		<div class="large-12 columns">
+			<h3>Existing rules:</h3>
+			<hr />
+			<fieldset>
+				<legend>Temperature</legend>
+					<p>If the temperature is higher than <b>40</b> degrees, then change it to 25 degrees</p>
+					<p>If the tempreature is lower than <b>15</b> degrees, then change it to 22 degrees</p>
+			</fieldset>
+			<fieldset>
+				<legend>Ligths</legend>
+					<p>If the ligths value is higher than <b>10</b>, then change it to 6</p>
+					<p>If the ligths value is lower than <b>2</b>, then change it to 4</p>
+			</fieldset>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="large-12 columns">
+			<h3>Change rules</h3>
+			<hr />
+			<div class="row">
+				<div class="large-5 columns">
+					<form>
+						<fieldset>
+							<legend>Temperature</legend>
+
+							<div class="row">
+								<div class="large-7 columns">
+									<label>Maximum</label>
+									<input type="text" placeholder="Introduce a value in degrees">
+								</div>
+
+								<div class="large-5 columns">
+									<label>Change to</label>
+									<input type="text">
+								</div>
+
+							</div>
+
+							<div class="row">
+								<div class="large-7 columns">
+									<label>Minimum</label>
+									<input type="text" placeholder="Introduce a value in degrees">
+								</div>
+
+								<div class="large-5 columns">
+									<label>Change to</label>
+									<input type="text">
+								</div>
+
+							</div>
+
+							<a type="submit" class="button tiny">Apply</a>
+
+						</fieldset>
+					</form>
+				</div>
+
+				<div class="large-5 columns">
+					<form>
+						<fieldset>
+							<legend>Ligths</legend>
+
+							<div class="row">
+								<div class="large-7 columns">
+									<label>Maximum</label>
+									<input type="text" placeholder="Introduce a value">
+								</div>
+
+								<div class="large-5 columns">
+									<label>Change to</label>
+									<input type="text">
+								</div>
+
+							</div>
+
+							<div class="row">
+								<div class="large-7 columns">
+									<label>Minimum</label>
+									<input type="text" placeholder="Introduce a value">
+								</div>
+
+								<div class="large-5 columns">
+									<label>Change to</label>
+									<input type="text">
+								</div>
+
+							</div>
+
+							<a type="submit" class="button tiny">Apply</a>
+
+						</fieldset>
+					</form>
+				</div>
+			</div>
+
+			
+			<hr />
+			<h3>Default values</h3>
+	        <div class="row">
+	          <div class="large-6 columns">
+		            <a href="#" class="small button success">Temperature</a>
+		            <a href="#" class="small button success">Ligths</a>
+	          </div>
+	        </div>
+		</div>
+	</div>
