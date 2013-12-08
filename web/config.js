@@ -7,28 +7,31 @@
  */
  
 var config = {
-	"logger" : {
-		"level" : "debug",
-		"printDate" : false
+	'logger' : {
+		'level' : 'debug',
+		'printDate' : false
 	},
-	"security" : {
-		"ssl" : false,
-		"auth" : true
+	'security' : {
+		'ssl' : false,
+		'auth' : true
 	},
-	"http" : {
-		"port" : 8080
+	'http' : {
+		'port' : 8080
 	},
-	"db": {
-		"uri" :	'' // TO DO
+	'db': {
+		'name' :	'brightnest',
+		'uri' :		'brightnest.db',
+		'username': 'brightnurse', // TO DO
+		'password': 'password'
 	},
-	"session" : {
-		"secret" : "One does not simply walk into this website."
+	'session' : {
+		'secret' : 'One does not simply walk into this website.'
 	}
 };
 
 /* Object getProperty(String name)
 * Get the property of an object by specifying the path (like
-* "logger.level")
+* 'logger.level')
 */
 function getProperty(name) {
 	var path = name.split('.');
