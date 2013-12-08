@@ -7,7 +7,7 @@
 
  var logger = require("./logger");
 
-module.exports = function(mongoose, ModelExample /* TODO: add other needed models */) {
+module.exports = function(models) {
 
 	function error(code, resp) {
 		var result = {};
@@ -53,39 +53,39 @@ module.exports = function(mongoose, ModelExample /* TODO: add other needed model
 	 * ------------------------------------------
 	 */
 	 
-	/**
-	 * createModelExample
-	 * ====
-	 * Create a ModelExample.
-	 * Parameters:
-	 *	- my1stField (String): 		Whatever
-	 *	- my2ndField (Int): 		Whatever
-	 *	- cb (Function(bool)):		Callback
-	 */
-	function createModelExample(my1stField, my2ndField, cb) {
-		ModelExample.findOne({ username: username }, function(err, user) {
-			var example = new ModelExample({my1stField: my1stField, my2ndField: my2ndField});
-			example.save(function(err) {
-				if (err) cb(false);
-				else cb (true);
-			});
-		});
-	}
-	function serviceCreateModelExample(req, resp) {
-		logger.info("<Service> CreateModelExample.");
-		var exData = parseRequest(req, ['my1stField', 'my2ndField']);
-		
-		writeHeaders(resp);
-		createModelExample(exData.my1stField, exData.my2ndField, function(success) { resp.end(JSON.stringify({ success: success })); });
-	}
-
-	/* TODO: implement other services */
-	
-	
+//	/**
+//	 * createModelExample
+//	 * ====
+//	 * Create a ModelExample.
+//	 * Parameters:
+//	 *	- my1stField (String): 		Whatever
+//	 *	- my2ndField (Int): 		Whatever
+//	 *	- cb (Function(bool)):		Callback
+//	 */
+//	function createModelExample(my1stField, my2ndField, cb) {
+//		ModelExample.findOne({ username: username }, function(err, user) {
+//			var example = new ModelExample({my1stField: my1stField, my2ndField: my2ndField});
+//			example.save(function(err) {
+//				if (err) cb(false);
+//				else cb (true);
+//			});
+//		});
+//	}
+//	function serviceCreateModelExample(req, resp) {
+//		logger.info("<Service> CreateModelExample.");
+//		var exData = parseRequest(req, ['my1stField', 'my2ndField']);
+//		
+//		writeHeaders(resp);
+//		createModelExample(exData.my1stField, exData.my2ndField, function(success) { resp.end(JSON.stringify({ success: success })); });
+//	}
+//
+//	/* TODO: implement other services */
+//	
+//	
 	this.rest = {};
-	this.rest.createModelExample = serviceCreateModelExample;
-
-	this.local = {};
-	this.local.createModelExample = createModelExample;
+//	this.rest.createModelExample = serviceCreateModelExample;
+//
+//	this.local = {};
+//	this.local.createModelExample = createModelExample;
 	return this;
 };

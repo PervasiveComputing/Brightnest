@@ -15,15 +15,11 @@ var config = {
 		"ssl" : false,
 		"auth" : true
 	},
-	"rest" : {
-		"url" : "localhost", // TO CHANGE BEFORE DEPLOYING!
-		"port" : 1337
-	},
 	"http" : {
 		"port" : 8080
 	},
 	"db": {
-		"uri" :	'mongodb://localhost/3dpal'
+		"uri" :	'' // TO DO
 	},
 	"session" : {
 		"secret" : "One does not simply walk into this website."
