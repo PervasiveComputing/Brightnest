@@ -16,9 +16,18 @@
 	</div>
 </div>
 
-	<script type="text/javascript" src="script/canvasjs-1.3.0/canvasjs.min.js"></script>
+<script type="text/javascript" src="script/canvasjs-1.3.0/canvasjs.min.js"></script>
 
-	<script type="text/javascript">
+<%var colors_temperature = new Array();%>
+	<%for(var i in values_temperature){%>
+		<%if(values_temperature[i]>20){%>
+			<%colors_temperature[i] = "red";%>
+		<%}else{%>
+			<%colors_temperature[i] = "green";%>
+		<%}%>
+	<%}%>
+
+<script type="text/javascript">
   window.onload = function () {
 	    var chart = new CanvasJS.Chart("chartContainer", {
 
@@ -31,18 +40,18 @@
 	         /*** Change type "column" to "bar", "area", "line" or "pie"***/
 	         type: "column",
 	         dataPoints: [
-		         { label: "Jan", y: 18, color: "green" },
-		         { label: "Feb", y: 29, color: "green" },
-		         { label: "March", y: 40, color: "red" },                                    
-		         { label: "Apr", y: 34, color: "green" },
-		         { label: "May", y: 40, color: "green" },
-		         { label: "Jun", y: 42, color: "green" },
-		         { label: "Jul", y: 45, color: "red" },
-		         { label: "Aug", y: 38, color: "green" },
-		         { label: "Sept", y: 31, color: "green" },
-		         { label: "Oct", y: 46, color: "red" },
-		         { label: "Nov", y: 44, color: "red" },
-		         { label: "Dec", y: 24, color: "green" }
+		         { label: "Jan", y: <%-values_temperature[0]%>, color: "<%-colors_temperature[0]%>" },
+		         { label: "Feb", y: <%-values_temperature[1]%>, color: "<%-colors_temperature[1]%>" },
+		         { label: "March", y: <%-values_temperature[2]%>, color: "<%-colors_temperature[2]%>" },                                    
+		         { label: "Apr", y: <%-values_temperature[3]%>, color: "<%-colors_temperature[3]%>" },
+		         { label: "May", y: <%-values_temperature[4]%>, color: "<%-colors_temperature[4]%>" },
+		         { label: "Jun", y: <%-values_temperature[5]%>, color: "<%-colors_temperature[5]%>" },
+		         { label: "Jul", y: <%-values_temperature[6]%>, color: "<%-colors_temperature[6]%>" },
+		         { label: "Aug", y: <%-values_temperature[7]%>, color: "<%-colors_temperature[7]%>" },
+		         { label: "Sept", y: <%-values_temperature[8]%>, color: "<%-colors_temperature[8]%>" },
+		         { label: "Oct", y: <%-values_temperature[9]%>, color: "<%-colors_temperature[9]%>" },
+		         { label: "Nov", y: <%-values_temperature[10]%>, color: "<%-colors_temperature[10]%>" },
+		         { label: "Dec", y: <%-values_temperature[11]%>, color: "<%-colors_temperature[11]%>" }
 	         ]
 	       }
 	       ]
