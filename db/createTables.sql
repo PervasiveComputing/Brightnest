@@ -24,7 +24,7 @@ CREATE TABLE Measures (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sensorId INTEGER,
         time DATETIME,
-        measureType INTEGER,
+        measureType VARCHAR(32),
         value REAL,
         FOREIGN KEY (sensorId) REFERENCES sensor (id)
 );
@@ -41,7 +41,7 @@ CREATE TABLE SensorRules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ruleId INTEGER,
         sensorId INTEGER,
-        measureType INTEGER NOT NULL,
+        measureType VARCHAR(32) NOT NULL,
         intervalStart REAL,
         intervalEnd REAL,
         FOREIGN KEY (ruleId) REFERENCES rule (id),
