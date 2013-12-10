@@ -164,8 +164,7 @@ viewHandler["/login"] = views.login;
 viewHandler["/signin"] = views.signin;
 viewHandler["/help"] = views.help;
 viewHandler["/behaviors"] = views.behaviors;
-viewHandler["/records_temperature"] = views.records_temperature;
-viewHandler["/records_lights"] = views.records_lights;
+viewHandler["/records"] = views.records;
 viewHandler["/about"] = views.about;
 
 
