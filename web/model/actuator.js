@@ -13,6 +13,12 @@ module.exports = function(sequelize, DataTypes) {
                 notEmpty: { msg: "Field customId cannot be empty" }
             }
         },
+		name: {
+            type: DataTypes.STRING(32),
+            validate: {
+                notEmpty: { msg: "Field name cannot be empty" }
+            }
+        },
         type: {
             type: DataTypes.STRING(32),
             validate: {
