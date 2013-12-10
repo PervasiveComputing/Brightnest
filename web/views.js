@@ -72,48 +72,79 @@ function viewHelp(req, res) {
 
 function viewBehaviors(req, res) {
 	logger.debug("<View> Viewing behaviors page.");
-	res.render('behaviours', {title: "Behaviours", rest: rest});
+
+	/********************Backend server************************************************************************************/
+	var sensors_list = new Array();
+	sensors_list[0]={name:"Sunspot"};
+	sensors_list[1]={name:"Humidity sensors"};
+
+	var actuators_list = new Array();
+	actuators_list[0]={name:"Actuator lights"};
+	actuators_list[1]={name:"Actuators temperature"};
+
+	var rules_list = new Array();
+	rules_list[0] = {name: "If the temperature is higher than 40 degrees, then change it to 25 degrees", id: 1};
+	rules_list[1] = {name: "If the tempreature is lower than 15 degrees, then change it to 22 degrees", id: 2};
+	rules_list[2] = {name: "If the lights value is higher than 10, then change it to 6", id: 3};
+	rules_list[3] = {name: "If the lights value is lower than 2, then change it to 4", id: 4};
+	/***********************************************************************************************************************/
+
+	res.render('behaviours', {title: "Behaviours", rest: rest, sensors_list: sensors_list, actuators_list: actuators_list, rules_list: rules_list});
 }
 
-function viewRecordsTemperature(req, res) {
-	logger.debug("<View> Viewing temperature records page.");
+function viewRecords(req,res){
 
-	var values_temperature = new Array();
-	values_temperature[0] = 32;
-	values_temperature[1] = 18;
-	values_temperature[2] = 24;
-	values_temperature[3] = 26;
-	values_temperature[4] = 15;
-	values_temperature[5] = 18;
-	values_temperature[6] = 12;
-	values_temperature[7] = 45;
-	values_temperature[8] = 51;
-	values_temperature[9] = 19;
-	values_temperature[10] = 10;
-	values_temperature[11] = 32;
+	/********************Backend server***********************/
+	var sensors_list = new Array();
+	sensors_list[0]={name:"Sunspot"};
+	sensors_list[1]={name:"Humidity sensors"};
+	/*********************************************************/
 
-	
-	res.render('records_temperature', {title: "Temperature records", rest: rest, values_temperature: values_temperature});
-}
+	if(req.query){
+		if(req.query.sensor){
+			var sensor = req.query.sensor;
+		}else{
+			var sensor = sensors_list[0].name;
+		}
+	}else{
+			var sensor = sensors_list[0].name;
+	}
 
-function viewRecordsLights(req, res) {
-	logger.debug("<View> Viewing lights records page.");
+	var values = new Array();
 
-	var values_lights = new Array();
-	values_lights[0] = 34;
-	values_lights[1] = 18;
-	values_lights[2] = 24;
-	values_lights[3] = 26;
-	values_lights[4] = 15;
-	values_lights[5] = 18;
-	values_lights[6] = 12;
-	values_lights[7] = 45;
-	values_lights[8] = 51;
-	values_lights[9] = 19;
-	values_lights[10] = 10;
-	values_lights[11] = 32;
+	if(sensor==sensors_list[0].name){
+		/*************************Backend server****************************/
+		values[0] = 32;
+		values[1] = 18;
+		values[2] = 24;
+		values[3] = 26;
+		values[4] = 15;
+		values[5] = 18;
+		values[6] = 12;
+		values[7] = 45;
+		values[8] = 51;
+		values[9] = 19;
+		values[10] = 10;
+		values[11] = 32;
+		/*******************************************************************/
+	}else if(sensor==sensors_list[1].name){
+		/*************************Backend server****************************/
+		values[0] = 12;
+		values[1] = 25;
+		values[2] = 18;
+		values[3] = 13;
+		values[4] = 38;
+		values[5] = 27;
+		values[6] = 21;
+		values[7] = 9;
+		values[8] = 36;
+		values[9] = 40;
+		values[10] = 16;
+		values[11] = 27;
+		/*******************************************************************/
+	}
 
-	res.render('records_lights', {title: "Lights records", rest: rest, values_lights: values_lights});
+	res.render('records', {title: "Records", rest: rest, sensor: sensor, sensors_list: sensors_list, values: values});
 }
 
 function viewAbout(req, res) {
@@ -127,6 +158,5 @@ exports.login = viewLogin;
 exports.notfound = viewNotfound;
 exports.help = viewHelp;
 exports.behaviors = viewBehaviors;
-exports.records_temperature = viewRecordsTemperature;
-exports.records_lights = viewRecordsLights;
+exports.records = viewRecords;
 exports.about = viewAbout;

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<% layout('layout') -%>
+
+
+<div class="row">
+	<div class="large-12 columns">
+		<h2>Records</h2>
+		<p>Here you can watch the different values stored for the selected sensor</p>
+		<hr />
+
+		<a href="#" class="button tiny" data-dropdown="drop">Change Sensor</a> 
+		<ul id="drop" class="tiny f-dropdown" data-dropdown-content> 
+			<%for(var i in sensors_list){%>
+				<li><a href="/records?sensor=<%=sensors_list[i].name%>"><%=sensors_list[i].name%></a></li>
+			<%}%>
+		</ul>
+
+	</div>
+</div>
+
+<div class="row">
+	<div class="large-12 columns">
+		<div id="chartContainer"></div>
+	</div>
+</div>
+
+<script type="text/javascript" src="script/canvasjs-1.3.0/canvasjs.min.js"></script>
+
+<%var colors = new Array();%>
+	<%for(var i in values){%>
+		<%if(values[i]>20){%>
+			<%colors[i] = "red";%>
+		<%}else{%>
+			<%colors[i] = "green";%>
+		<%}%>
+	<%}%>
+
+<script type="text/javascript">
+  window.onload = function () {
+	    var chart = new CanvasJS.Chart("chartContainer", {
+
+	      title:{
+	        text: "<%=sensor%>"              
+	      },
+	      data: [//array of dataSeries              
+	        { //dataSeries object
+
+	         /*** Change type "column" to "bar", "area", "line" or "pie"***/
+	         type: "column",
+	         dataPoints: [
+		         { label: "Jan", y: <%-values[0]%>, color: "<%-colors[0]%>" },
+		         { label: "Feb", y: <%-values[1]%>, color: "<%-colors[1]%>" },
+		         { label: "March", y: <%-values[2]%>, color: "<%-colors[2]%>" },                                    
+		         { label: "Apr", y: <%-values[3]%>, color: "<%-colors[3]%>" },
+		         { label: "May", y: <%-values[4]%>, color: "<%-colors[4]%>" },
+		         { label: "Jun", y: <%-values[5]%>, color: "<%-colors[5]%>" },
+		         { label: "Jul", y: <%-values[6]%>, color: "<%-colors[6]%>" },
+		         { label: "Aug", y: <%-values[7]%>, color: "<%-colors[7]%>" },
+		         { label: "Sept", y: <%-values[8]%>, color: "<%-colors[8]%>" },
+		         { label: "Oct", y: <%-values[9]%>, color: "<%-colors[9]%>" },
+		         { label: "Nov", y: <%-values[10]%>, color: "<%-colors[10]%>" },
+		         { label: "Dec", y: <%-values[11]%>, color: "<%-colors[11]%>" }
+	         ]
+	       }
+	       ]
+	     });
+
+	    chart.render();
+  }
+</script>
