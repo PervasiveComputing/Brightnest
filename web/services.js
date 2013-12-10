@@ -69,13 +69,18 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 */
 	function createSensor(type, name, customId, cb) {
 		if (sensorsDrivers[type]) { // If this kind of device is supported:
-			// Add to DB:
-			models.Sensor.create({ customId: customId, type: type, name: name })
-				.success(function(sensor) {
+			// Check if this sensor isn't already added (the combination type + customId should be unique):
+			models.Sensor.findOrCreate({ customId: customId, type: type }, { name: name })
+				.success(function(sensor, created) {
+					if (!created) {
+						cb('Device already added', sensor.id);
+						return;
+					}
+					
 					// Let the driver handle the integration of the device to the system:
 					sensorsDrivers[type].add(customId, function(err){
 						if (err) { // Cancelling Modif:
-							models.Sensor.destroy({id: id})
+							models.Sensor.destroy({id: sensor.id})
 								.success(function() {
 									cb(err, null);
 									return;
@@ -118,21 +123,27 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * ====
 	 * Returns a list of sensors.
 	 * Parameters:
+	 *	- type (String): 					Type of sensor to find
+	 *	- customId (String): 				Custom ID to find
 	 *	- limit (int): 					Number max of sensors to return
 	 *	- offset (int): 				Number of the sensor to start with
 	 *	- cb (Function(err, Sensor[])):	Callback
 	 */
-	function getSensors(limit, offset, cb) {
+	function getSensors(type, customId, limit, offset, cb) {
 		if (!offset) offset = 0;
+		var conditions = {};
+		if (type) { condition.type = type; }
+		if (customId) { condition.customId = customId; }
+		
 		if (limit) {
-			models.Sensor.findAll({ offset: offset, limit: limit, raw: true })
+			models.Sensor.findAll({ where: conditions, offset: offset, limit: limit, raw: true })
 				.success(function(ans){cb(null, ans);})
 				.error(function(err) {
 					cb(err, null);
 				});
 		}
 		else {
-			models.Sensor.findAll({ offset: offset, raw: true })
+			models.Sensor.findAll({ where: conditions, offset: offset, raw: true })
 				.success(function(ans){cb(null, ans);})
 				.error(function(err) {
 					cb(err, null);
@@ -145,15 +156,17 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * Request Var:
 	 * 		none
 	 * Request Parameters:
-	 *		- limit (int): 		Number max to return				- optional
-	 *		- offset (int): 	Number of the sensor to start with	- optional
+	 *		- type (String): 		Type of sensor to find				- optional
+	 *		- customId (String): 	Custom ID to find					- optional
+	 *		- limit (int): 			Number max to return				- optional
+	 *		- offset (int): 		Number of the sensor to start with	- optional
 	 */
 	function serviceGetSensors(req, resp) {
 		logger.info("<Service> GetSensors.");
-		var getData = parseRequest(req, ['limit', 'offset']);
+		var getData = parseRequest(req, ['limit', 'offset', 'type', 'customId']);
 		
 		writeHeaders(resp);
-		getSensors(getData.limit, getData.offset, function (err, sensors) {
+		getSensors(getData.type, getData.customId, getData.limit, getData.offset, function (err, sensors) {
 			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ sensors: sensors })); 
 		});
@@ -569,12 +582,17 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	function createActuator(type, name, customId, cb) {
 		if (actuatorsDrivers[type]) { // If this kind of device is supported:
 			// Add to DB:
-			models.Actuator.create({ customId: customId, type: type, name: name })
-				.success(function(actuator) {
+			models.Actuator.findOrCreate({ customId: customId, type: type }, { name: name })
+				.success(function(actuator, created) {
+					if (!created) {
+						cb('Device already added', actuator.id);
+						return;
+					}
+					
 					// Let the driver handle the integration of the device to the system:
 					actuatorsDrivers[type].add(customId, function(err){
 						if (err) { // Cancelling Modif:
-							models.Actuator.destroy({id: id})
+							models.Actuator.destroy({id: actuator.id})
 								.success(function() {
 									cb(err, null);
 									return;
@@ -611,27 +629,32 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			resp.end(JSON.stringify({ status: 'ok', id: id }));
 		});
 	}
-	 
+	
 	/**
 	 * getActuators
 	 * ====
 	 * Returns a list of actuators.
 	 * Parameters:
+	 *	- type (String): 				Type of actuators to find
+	 *	- customId (String): 			Custom ID to find
 	 *	- limit (int): 					Number max of actuators to return
 	 *	- offset (int): 				Number of the actuator to start with
 	 *	- cb (Function(err, Actuator[])):	Callback
 	 */
-	function getActuators(limit, offset, cb) {
+	function getActuators(type, customId, limit, offset, cb) {
 		if (!offset) offset = 0;
+		var conditions = {};
+		if (type) { condition.type = type; }
+		if (customId) { condition.customId = customId; }
 		if (limit) {
-			models.Actuator.findAll({ offset: offset, limit: limit, raw: true })
+			models.Actuator.findAll({ where: conditions, offset: offset, limit: limit, raw: true })
 				.success(function(ans){cb(null, ans);})
 				.error(function(err) {
 					cb(err, null);
 				});
 		}
 		else {
-			models.Actuator.findAll({ offset: offset, raw: true })
+			models.Actuator.findAll({ where: conditions, offset: offset, raw: true })
 				.success(function(ans){cb(null, ans);})
 				.error(function(err) {
 					cb(err, null);
@@ -644,7 +667,9 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * Request Var:
 	 * 		none
 	 * Request Parameters:
-	 *		- limit (int): 		Number max to return				- optional
+	 *		- type (String): 	Type of actuators to find				- optional
+	 *		- customId (String):Custom ID to find						- optional
+	 *		- limit (int): 		Number max to return					- optional
 	 *		- offset (int): 	Number of the actuator to start with	- optional
 	 */
 	function serviceGetActuators(req, resp) {
