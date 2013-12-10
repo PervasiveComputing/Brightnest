@@ -53,6 +53,47 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 
 	/*
 	 * ------------------------------------------
+	 * INITIALIZATION - Services
+	 * ------------------------------------------
+	 */
+	 
+	/**
+	 * loadDevices
+	 * ====
+	 * Fetch the devices added to the DB and call their drivers to handle them.
+	 * Parameters:
+	 *	- cb (Function(Erreur, Device):		Callback, in case an error appears when dealing with one of the devices
+	 */
+	function loadDevices(cb) {
+		models.Sensor.findAll()
+			.success(function(sensors){
+				for (var i = 0; i < sensors.length; i++) {
+					sensorsDrivers[sensors[i].type].add(sensors[i].customId, function(err){
+						if (err) { cb(err, sensors[i]); }
+						else { logger.info('<Sensor> ' + sensors[i].name + ' (type: ' + sensors[i].type + ', customId: ' + sensors[i].customId + ') - Ready'); }
+					});
+				}
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+			
+		models.Actuator.findAll()
+			.success(function(actuators){
+				for (var i = 0; i < actuators.length; i++) {
+					actuatorsDrivers[actuators[i].type].add(actuators[i].customId, function(err){
+						if (err) { cb(err, actuators[i]); }
+						else { logger.info('<Actuator> ' + actuators[i].name + ' (type: ' + actuators[i].type + ', customId: ' + actuators[i].customId + ') - Ready'); }
+					});
+				}
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+
+	/*
+	 * ------------------------------------------
 	 * SENSORS - CRUD Services
 	 * ------------------------------------------
 	 */
@@ -2973,7 +3014,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 	  	 
 	/*
 	 * ------------------------------------------
-	 * ROUTING
+	 * REST ROUTING
 	 * ------------------------------------------
 	 */
 	 
@@ -3143,5 +3184,17 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		'GET'	: serviceGetActuatorRuleRule
 	};
 
+	 
+	 	  	 
+	/*
+	 * ------------------------------------------
+	 * LOCAL EXPORTS
+	 * ------------------------------------------
+	 */
+	 
+	 this.local = {};
+	 this.local.loadDevices = loadDevices;
+	 
+	 
 	return this;
 };
