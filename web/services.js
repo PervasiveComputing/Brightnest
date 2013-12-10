@@ -1674,6 +1674,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 				cb(err, null);
 			});
 	}
+	
 	/**
 	 * serviceCreateRule
 	 * ====
@@ -1689,6 +1690,80 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		
 		writeHeaders(resp);
 		createRule(ruleData.name, function(err, id) {
+			if (err) { error(10, resp, err); return; }
+			resp.end(JSON.stringify({ status: 'ok', id: id }));
+		});
+	}
+	
+	/**
+	 * createSimpleRule
+	 * ====
+	 * Add a rule to the DB and system, binding only 1 sensor to 1 actuator
+	 * Parameters:
+	 *	- name (String): 					Name of the rule
+	 *	- measureType (String): 			Type of measure concerned
+	 *	- intervalStart (float): 			Smallest Value concerned
+	 *	- intervalEnd (float): 				Biggest Value concerned
+	 *	- value (float): 					Value to send to the actuator
+	 *	- isActive (bool): 					IsActive Flag
+	 *	- cb (Function(Erreur, int)):		Callback
+	 */
+	function createSimpleRule(name, measureType, intervalStart, intervalEnd, cb) {
+		models.Rule.create({ name: name })
+			.success(function(rule) {
+				models.SensorRule.create({ measureType: measureType, intervalStart: intervalStart, intervalEnd: intervalEnd })
+					.success(function(sensorRule) {
+						sensor.addSensorRule(sensorRule)
+							.success(function() {
+								models.ActuatorRule.create({ value: value, isActive: isActive })
+									.success(function(actuatorRule) {
+										actuator.addActuatorRule(actuatorRule)
+											.success(function() { cb(null, rule.id); })
+											.error(function(err) {
+												actuatorRule.destroy().success(function() {
+													cb(err, null);
+												})
+											});
+									})
+									.error(function(err) {
+										cb(err, null);
+									});
+							})
+							.error(function(err) {
+								sensorRule.destroy().success(function() {
+									cb(err, null);
+								})
+							});
+					})
+					.error(function(err) {
+						cb(err, null);
+					});
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	
+	/**
+	 * serviceCreateSimpleRule
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 * 		- name (String): 			Name of the rule				- required
+	 *		- measureType (String): 	Type of measure concerned		- required
+	 *		- intervalStart (float): 	Smallest Value concerned		- required
+	 *		- intervalEnd (float): 		Biggest Value concerned			- required
+	 *		- value (float): 			Value to send to the actuator	- required
+	 *		- isActive (bool): 			IsActive Flag					- required
+	 *		- customId (String): 		Custom ID for the driver 		- required
+	 */
+	function serviceCreateSimpleRule(req, resp) {
+		logger.info("<Service> CreateSimpleRule.");
+		var ruleData = parseRequest(req, ['name', 'measureType', 'intervalStart', 'intervalEnd', 'value', 'isActive', ]);
+		
+		writeHeaders(resp);
+		createSimpleRule(ruleData.name, ruleData.measureType, ruleData.intervalStart, ruleData.intervalEnd, ruleData.value, ruleData.isActive, function(err, id) {
 			if (err) { error(10, resp, err); return; }
 			resp.end(JSON.stringify({ status: 'ok', id: id }));
 		});
@@ -1949,7 +2024,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 				if (!rule) { cb('Rule doesn\'t exist', null); return; }
 				models.SensorRule.create({ measureType: measureType, intervalStart: intervalStart, intervalEnd: intervalEnd })
 					.success(function(sensorRule) {
-						sensor.addMeasure(sensorRule)
+						sensor.addSensorRule(sensorRule)
 							.success(function() { cb(null, sensorRule.id); })
 							.error(function(err) {
 								sensorRule.destroy().success(function() {
@@ -2472,7 +2547,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 				if (!rule) { cb('Rule doesn\'t exist', null); return; }
 				models.ActuatorRule.create({ value: value, isActive: isActive })
 					.success(function(actuatorRule) {
-						actuator.addMeasure(actuatorRule)
+						actuator.addActuatorRule(actuatorRule)
 							.success(function() { cb(null, actuatorRule.id); })
 							.error(function(err) {
 								actuatorRule.destroy().success(function() {
@@ -2992,6 +3067,11 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		'POST'	: serviceCreateRule,
 		'GET'	: serviceGetRules
 	};
+	
+	this.rest['simpleRules'] = {
+		'POST'	: serviceCreateSimpleRule
+	};
+	
 	this.rest['rules/offset/:offset'] = this.rest['rules/offset/:offset/limit/:limit'] = {
 		'GET'	: serviceGetRules
 	};
