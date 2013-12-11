@@ -28,13 +28,11 @@ function add(customId, baseStationUrl, serverUrl, cb) {
 		var options = {
 				host : baseStationUrl,
 				port: 8000,
-				path : '/register/sensor/?status=registered&url=http://'+serverUrl+':8080/measures&port=8080',
+				path : '/register/sensor/?id=customId&status=registered&url=http://'+serverUrl+':8080/api/measures&port=8080',
 				method : 'GET'
 			}
 		var data;
 		var request = http.request(options, function(response){
-
-			console.log("Connecting to http://" + baseStationUrl +"/register/sensor?status=registered&url=http://"+serverUrl+":8080/measures&port=8080");
 			 
 			response.on('data', function(chunk){
 			});
@@ -83,7 +81,7 @@ function remove(customId, cb) {
 		var options = {
 			host : baseStationAddr,
 			port: 8000,
-			path : '/unregister/sensor/?status=unregistered',
+			path : '/unregister/sensor/?id=customId&status=unregistered',
 			method : 'GET'
 		}
 		var data;

@@ -1135,15 +1135,11 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 */
 	function createMeasure(value, sensorId, time, measureType, cb) {
 		if (!time) { time = new Date(); }
-		console.log('******sensorId: ' + sensorId);
-		console.log('******Medida: ' + value);
-		console.log('******Measure Type: ' + measureType);
-		console.log('******Date: ' + time);
 		
-		models.Sensor.find(sensorId)
+		models.Sensor.find({where: {customId:sensorId}})
 			.success(function(sensor){
 				if (!sensor) { cb('Sensor doesn\'t exist', null); return; }
-				models.Measure.create({ value: value, measureType: measureType, time: time })
+				models.Measure.create({ value: value, measureType: measureType, time: time, sensorId: sensorId })
 					.success(function(measure) {
 						sensor.addMeasure(measure)
 							.success(function() { cb(null, measure.id); })
@@ -1174,7 +1170,6 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 */
 	function serviceCreateMeasure(req, resp) {
 		logger.info("<Service> CreateMeasure.");
-		var measureData = parseRequest(req, ['value', 'sensorId', 'time', 'measureType']);
 		var light    = req.headers.light;
 		var temp     = req.headers.temp;
 		var sensorId = req.headers.address;
