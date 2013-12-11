@@ -10,11 +10,13 @@ DROP TABLE IF EXISTS actuator;
 CREATE TABLE Actuators (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         customId VARCHAR(32),
+        name VARCHAR(32),
         type VARCHAR(32)
 );
 CREATE TABLE Sensors (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         customId VARCHAR(32),
+        name VARCHAR(32),
         type VARCHAR(32)
 );
 
@@ -22,7 +24,7 @@ CREATE TABLE Measures (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sensorId INTEGER,
         time DATETIME,
-        measureType INTEGER,
+        measureType VARCHAR(32),
         value REAL,
         FOREIGN KEY (sensorId) REFERENCES sensor (id)
 );
@@ -39,7 +41,7 @@ CREATE TABLE SensorRules (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         ruleId INTEGER,
         sensorId INTEGER,
-        measureType INTEGER NOT NULL,
+        measureType VARCHAR(32) NOT NULL,
         intervalStart REAL,
         intervalEnd REAL,
         FOREIGN KEY (ruleId) REFERENCES rule (id),

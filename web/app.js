@@ -84,6 +84,7 @@ var	models = require('./models')(sequelize),
  * ------------------------
  */
  
+ 
 var rest;
 if(sslActivated) {
 	rest = express({
@@ -164,8 +165,7 @@ viewHandler["/login"] = views.login;
 viewHandler["/signin"] = views.signin;
 viewHandler["/help"] = views.help;
 viewHandler["/behaviors"] = views.behaviors;
-viewHandler["/records_temperature"] = views.records_temperature;
-viewHandler["/records_ligths"] = views.records_ligths;
+viewHandler["/records"] = views.records;
 viewHandler["/about"] = views.about;
 
 
@@ -181,3 +181,8 @@ var serverHtml = http.createServer(html);
 serverHtml.listen(config.getProperty("http.port"));
 
 logger.warn("HTML Server is listening.");
+
+// Loading the already-added devices:
+services.local.loadDevices(function(err, dev) {
+	logger.error('<Device> ' + dev[i].name + ' (type: ' + dev[i].type + ', customId: ' + dev[i].customId + ') - Error when loading');
+});

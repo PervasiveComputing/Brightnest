@@ -20,7 +20,7 @@ module.exports = function(sequelize, DataTypes) {
             }
         },
         measureType: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.STRING(32),
             validate: {
                 notEmpty: { msg: "Field measureType cannot be empty" }
             }
