@@ -5,6 +5,10 @@
  * Driver to handle Sunspot
  */
  
+var baseStationAddr;
+var serverPublicDNS;
+var sunspots = new Array();
+var numSunSpots = 0;
 
 /**
  * add
@@ -12,11 +16,44 @@
  * Add the sensor to the system.
  * Parameters:
  *	- customId (String):		Custom ID of the new device for the driver
+ *  - baseStationUrl (String):  Direction of the machine where the base station app is running
+ *  - serverUrl (String):       Direction of the machine where the main server is running
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
-function add(customId, cb) {
-	// TO DO
-	cb(null);
+function add(customId, baseStationUrl, serverUrl, cb) {
+	
+	if(a.indexOf(customId) < 0){
+		baseStationAddr = baseStationUrl;
+		serverPublicDNS = serverUrl;
+		var options = {
+				host : baseStationUrl,
+				port: 8000,
+				path : '/register/sensor/?status=registered&url=http://'+serverUrl+':8080/measures&port=8080',
+				method : 'GET'
+			}
+		var data;
+		var request = http.request(options, function(response){
+
+			console.log("Connecting to http://" + baseStationUrl +"/register/sensor?status=registered&url=http://"+serverUrl+":8080/measures&port=8080");
+			 
+			response.on('data', function(chunk){
+			});
+
+			response.on('end', function(){
+				a.splice(numSunSpots, 1, customId);
+				numSunSpots++;
+
+			});
+
+			request.on('error', function(e) {
+			   cb('Problem with request: ' + e.message);
+		    });
+		});
+		request.end();
+	}else{
+		cb('SunSPOT already installed');
+	}
+	
 }
 
 /**
@@ -42,8 +79,33 @@ function update(prevCustomId, newCustomId, cb) {
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
 function remove(customId, cb) {
-	// TO DO
-	cb(null);
+	if(sunspots.indexOf(customId)>=0){
+		var options = {
+			host : baseStationAddr,
+			port: 8000,
+			path : '/unregister/sensor/?status=unregistered',
+			method : 'GET'
+		}
+		var data;
+		var request = http.request(options, function(response){
+
+			response.on('data', function(chunk){
+			});
+
+			response.on('end', function(){
+				a.splice(indexOf(customId), 1);
+				numSunSpots--;
+
+			});
+
+			request.on('error', function(e) {
+			   cb('Problem with request: ' + e.message);
+		    });
+		});
+		request.end(); 
+	}else{
+		cb('SunSPOT not registered. It is not possible to delete it');
+	}
 }
 
 exports.add = add;
