@@ -53,6 +53,47 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 
 	/*
 	 * ------------------------------------------
+	 * INITIALIZATION - Services
+	 * ------------------------------------------
+	 */
+	 
+	/**
+	 * loadDevices
+	 * ====
+	 * Fetch the devices added to the DB and call their drivers to handle them.
+	 * Parameters:
+	 *	- cb (Function(Erreur, Device):		Callback, in case an error appears when dealing with one of the devices
+	 */
+	function loadDevices(cb) {
+		models.Sensor.findAll()
+			.success(function(sensors){
+				for (var i = 0; i < sensors.length; i++) {
+					sensorsDrivers[sensors[i].type].add(sensors[i].customId, function(err){
+						if (err) { cb(err, sensors[i]); }
+						else { logger.info('<Sensor> ' + sensors[i].name + ' (type: ' + sensors[i].type + ', customId: ' + sensors[i].customId + ') - Ready'); }
+					});
+				}
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+			
+		models.Actuator.findAll()
+			.success(function(actuators){
+				for (var i = 0; i < actuators.length; i++) {
+					actuatorsDrivers[actuators[i].type].add(actuators[i].customId, function(err){
+						if (err) { cb(err, actuators[i]); }
+						else { logger.info('<Actuator> ' + actuators[i].name + ' (type: ' + actuators[i].type + ', customId: ' + actuators[i].customId + ') - Ready'); }
+					});
+				}
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+
+	/*
+	 * ------------------------------------------
 	 * SENSORS - CRUD Services
 	 * ------------------------------------------
 	 */
@@ -63,18 +104,24 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * Add a sensor to the DB and system, if there is a driver to handle it.
 	 * Parameters:
 	 *	- type (String): 					Type of sensor
+	 *  - name (String): 					Human-readable name	
 	 *	- customId (String): 				Custom ID for the driver
 	 *	- cb (Function(Erreur, int)):		Callback
 	 */
-	function createSensor(type, customId, cb) {
+	function createSensor(type, name, customId, cb) {
 		if (sensorsDrivers[type]) { // If this kind of device is supported:
-			// Add to DB:
-			models.Sensor.create({ customId: customId, type: type })
-				.success(function(sensor) {
+			// Check if this sensor isn't already added (the combination type + customId should be unique):
+			models.Sensor.findOrCreate({ customId: customId, type: type }, { name: name })
+				.success(function(sensor, created) {
+					if (!created) {
+						cb('Device already added', sensor.id);
+						return;
+					}
+					
 					// Let the driver handle the integration of the device to the system:
 					sensorsDrivers[type].add(customId, function(err){
 						if (err) { // Cancelling Modif:
-							models.Sensor.destroy({id: id})
+							models.Sensor.destroy({id: sensor.id})
 								.success(function() {
 									cb(err, null);
 									return;
@@ -98,14 +145,15 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * 		none
 	 * Request Parameters:
 	 * 		- type (String): 					Type of sensor				- required
+	 * 		- name (String): 					Human-readable name			- required
 	 *		- customId (String): 				Custom ID for the driver 	- required
 	 */
 	function serviceCreateSensor(req, resp) {
 		logger.info("<Service> CreateSensor.");
-		var sensorData = parseRequest(req, ['type', 'customId']);
+		var sensorData = parseRequest(req, ['type', 'customId', 'name']);
 		
 		writeHeaders(resp);
-		createSensor(sensorData.type, sensorData.customId,function(err, id) {
+		createSensor(sensorData.type, sensorData.name, sensorData.customId, function(err, id) {
 			if (err) { error(10, resp, err); return; }
 			resp.end(JSON.stringify({ status: 'ok', id: id }));
 		});
@@ -116,21 +164,27 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * ====
 	 * Returns a list of sensors.
 	 * Parameters:
+	 *	- type (String): 					Type of sensor to find
+	 *	- customId (String): 				Custom ID to find
 	 *	- limit (int): 					Number max of sensors to return
 	 *	- offset (int): 				Number of the sensor to start with
 	 *	- cb (Function(err, Sensor[])):	Callback
 	 */
-	function getSensors(limit, offset, cb) {
+	function getSensors(type, customId, limit, offset, cb) {
 		if (!offset) offset = 0;
+		var conditions = {};
+		if (type) { condition.type = type; }
+		if (customId) { condition.customId = customId; }
+		
 		if (limit) {
-			models.Sensor.findAll({ offset: offset, limit: limit, raw: true })
+			models.Sensor.findAll({ where: conditions, offset: offset, limit: limit, raw: true })
 				.success(function(ans){cb(null, ans);})
 				.error(function(err) {
 					cb(err, null);
 				});
 		}
 		else {
-			models.Sensor.findAll({ offset: offset, raw: true })
+			models.Sensor.findAll({ where: conditions, offset: offset, raw: true })
 				.success(function(ans){cb(null, ans);})
 				.error(function(err) {
 					cb(err, null);
@@ -143,15 +197,17 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * Request Var:
 	 * 		none
 	 * Request Parameters:
-	 *		- limit (int): 		Number max to return				- optional
-	 *		- offset (int): 	Number of the sensor to start with	- optional
+	 *		- type (String): 		Type of sensor to find				- optional
+	 *		- customId (String): 	Custom ID to find					- optional
+	 *		- limit (int): 			Number max to return				- optional
+	 *		- offset (int): 		Number of the sensor to start with	- optional
 	 */
 	function serviceGetSensors(req, resp) {
 		logger.info("<Service> GetSensors.");
-		var getData = parseRequest(req, ['limit', 'offset']);
+		var getData = parseRequest(req, ['limit', 'offset', 'type', 'customId']);
 		
 		writeHeaders(resp);
-		getSensors(getData.limit, getData.offset, function (err, sensors) {
+		getSensors(getData.type, getData.customId, getData.limit, getData.offset, function (err, sensors) {
 			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ sensors: sensors })); 
 		});
@@ -231,6 +287,42 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		getSensorType(getData.id, function(err, type) {
 			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ type: type })); 
+		});
+	}
+	
+	/**
+	 * getSensorName
+	 * ====
+	 * Returns the Sensor's name
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, name):	Callback
+	 */
+	function getSensorName(id, cb) {
+		models.Sensor.find(id)
+			.success(function(sensor){
+				cb(null, sensor.name);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetSensorName
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetSensorName(req, resp) {
+		logger.info("<Service> GetSensorName.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getSensorName(getData.id, function(err, name) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ name: name })); 
 		});
 	}
 	
@@ -330,15 +422,16 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * Update the Sensor corresponding to the given id
 	 * Parameters:
 	 *	- type (String): 			Type of sensor
+	 * 	- name (String):			Human-readable name
 	 *	- customId (String): 		Custom ID for the driver
 	 *	- cb (Function(bool)):		Callback
 	 */ 
-	function updateSensor(id, type, customId, cb) {
+	function updateSensor(id, type, name,customId, cb) {
 		if (sensorsDrivers[type]) { // If this kind of device is supported:
 			getSensor(id, function(err, prevSensor) { // Getting previous customId to inform the Driver of the update:
 				if (err) { error(2, resp, err); return; }
 				// Add to DB:
-				models.Sensor.update({type: type, customId: customId}, {id: id})
+				models.Sensor.update({type: type, customId: customId, name:name}, {id: id})
 					.success(function() {
 						// Inform the driver of the change:
 						sensorsDrivers[type].update(prevSensor.customId, customId, function(err){
@@ -368,14 +461,15 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * 		- id (string)		ID
 	 * Request Parameters:
 	 * 		- type (String): 					Type of sensor				- required
+	 * 		- name (String):					Human-readable name			- required
 	 *		- customId (String): 				Custom ID for the driver 	- required
 	 */
 	function serviceUpdateSensor(req, resp) {
 		logger.info("<Service> UpdateSensor.");
-		var sensorData = parseRequest(req, ['id', 'type', 'customId']);
+		var sensorData = parseRequest(req, ['id', 'type', 'customId', 'name']);
 		
 		writeHeaders(resp);
-		updateSensor(sensorData.id, sensorData.type, sensorData.customId, function(err, bool) {
+		updateSensor(sensorData.id, sensorData.type, sensorData.name, sensorData.customId, function(err, bool) {
 			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
@@ -414,6 +508,43 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		
 		writeHeaders(resp);
 		updateSensorType(sensorData.id, sensorData.type, function(err, bool) {
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+	
+	/**
+	 * updateSensorName
+	 * ====
+	 * Update the name of the Sensor corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- name (String): 			Name to change
+	 *	- cb (Function(bool):		Callback
+	 */ 
+	function updateSensorName(id, name, cb) {
+			models.Sensor.update({name: name}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceUpdateSensorName
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		- name (String): 	Name 		- required
+	 */
+	function serviceUpdateSensorName(req, resp) {
+		logger.info("<Service> UpdateSensorName.");
+		var sensorData = parseRequest(req, ['id', 'name']);
+		
+		writeHeaders(resp);
+		updateSensorName(sensorData.id, sensorData.name, function(err, bool) {
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
 		});
@@ -485,18 +616,24 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * Add a actuator to the DB and system, if there is a driver to handle it.
 	 * Parameters:
 	 *	- type (String): 					Type of actuator
+	 * 	- name (String):					Human-readable name
 	 *	- customId (String): 				Custom ID for the driver
 	 *	- cb (Function(Erreur, int)):		Callback
 	 */
-	function createActuator(type, customId, cb) {
+	function createActuator(type, name, customId, cb) {
 		if (actuatorsDrivers[type]) { // If this kind of device is supported:
 			// Add to DB:
-			models.Actuator.create({ customId: customId, type: type })
-				.success(function(actuator) {
+			models.Actuator.findOrCreate({ customId: customId, type: type }, { name: name })
+				.success(function(actuator, created) {
+					if (!created) {
+						cb('Device already added', actuator.id);
+						return;
+					}
+					
 					// Let the driver handle the integration of the device to the system:
 					actuatorsDrivers[type].add(customId, function(err){
 						if (err) { // Cancelling Modif:
-							models.Actuator.destroy({id: id})
+							models.Actuator.destroy({id: actuator.id})
 								.success(function() {
 									cb(err, null);
 									return;
@@ -519,40 +656,46 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * Request Var:
 	 * 		none
 	 * Request Parameters:
-	 * 		- type (String): 					Type of actuator				- required
+	 * 		- type (String): 					Type of actuator			- required
+	 * 		- name (String):					Human-readable name			- required
 	 *		- customId (String): 				Custom ID for the driver 	- required
 	 */
 	function serviceCreateActuator(req, resp) {
 		logger.info("<Service> CreateActuator.");
-		var actuatorData = parseRequest(req, ['type', 'customId']);
+		var actuatorData = parseRequest(req, ['type', 'customId', 'name']);
 		
 		writeHeaders(resp);
-		createActuator(actuatorData.type, actuatorData.customId, function(err, id) {
+		createActuator(actuatorData.type, actuatorData.name, actuatorData.customId, function(err, id) {
 			if (err) { error(10, resp, err); return; }
 			resp.end(JSON.stringify({ status: 'ok', id: id }));
 		});
 	}
-	 
+	
 	/**
 	 * getActuators
 	 * ====
 	 * Returns a list of actuators.
 	 * Parameters:
+	 *	- type (String): 				Type of actuators to find
+	 *	- customId (String): 			Custom ID to find
 	 *	- limit (int): 					Number max of actuators to return
 	 *	- offset (int): 				Number of the actuator to start with
 	 *	- cb (Function(err, Actuator[])):	Callback
 	 */
-	function getActuators(limit, offset, cb) {
+	function getActuators(type, customId, limit, offset, cb) {
 		if (!offset) offset = 0;
+		var conditions = {};
+		if (type) { condition.type = type; }
+		if (customId) { condition.customId = customId; }
 		if (limit) {
-			models.Actuator.findAll({ offset: offset, limit: limit, raw: true })
+			models.Actuator.findAll({ where: conditions, offset: offset, limit: limit, raw: true })
 				.success(function(ans){cb(null, ans);})
 				.error(function(err) {
 					cb(err, null);
 				});
 		}
 		else {
-			models.Actuator.findAll({ offset: offset, raw: true })
+			models.Actuator.findAll({ where: conditions, offset: offset, raw: true })
 				.success(function(ans){cb(null, ans);})
 				.error(function(err) {
 					cb(err, null);
@@ -565,7 +708,9 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * Request Var:
 	 * 		none
 	 * Request Parameters:
-	 *		- limit (int): 		Number max to return				- optional
+	 *		- type (String): 	Type of actuators to find				- optional
+	 *		- customId (String):Custom ID to find						- optional
+	 *		- limit (int): 		Number max to return					- optional
 	 *		- offset (int): 	Number of the actuator to start with	- optional
 	 */
 	function serviceGetActuators(req, resp) {
@@ -653,6 +798,42 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		getActuatorType(getData.id, function(err, type) {
 			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ type: type })); 
+		});
+	}
+	
+	/**
+	 * getActuatorName
+	 * ====
+	 * Returns the Actuator's name
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- cb (Function(err, name):	Callback
+	 */
+	function getActuatorName(id, cb) {
+		models.Actuator.find(id)
+			.success(function(actuator){
+				cb(null, actuator.name);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetActuatorName
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		-none
+	 */
+	function serviceGetActuatorName(req, resp) {
+		logger.info("<Service> GetActuatorName.");
+		var getData = parseRequest(req, ['id']);
+		
+		writeHeaders(resp);
+		getActuatorName(getData.id, function(err, name) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ name: name })); 
 		});
 	}
 	
@@ -750,16 +931,18 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * ====
 	 * Update the Actuator corresponding to the given id
 	 * Parameters:
+	 * 	- id (String):				ID
 	 *	- type (String): 			Type of actuator
+	 * 	- name (String):			Human-readable name
 	 *	- customId (String): 		Custom ID for the driver
 	 *	- cb (Function(bool)):		Callback
 	 */ 
-	function updateActuator(id, type, customId, cb) {
+	function updateActuator(id, type, name, customId, cb) {
 		if (actuatorsDrivers[type]) { // If this kind of device is supported:
 			getActuator(id, function(err, prevActuator) { // Getting previous customId to inform the Driver of the update:
 				if (err) { error(2, resp, err); return; }
 				// Add to DB:
-				models.Actuator.update({type: type, customId: customId}, {id: id})
+				models.Actuator.update({type: type, customId: customId, name: name}, {id: id})
 					.success(function() {
 						// Inform the driver of the change:
 						actuatorsDrivers[type].update(prevActuator.customId, customId, function(err){
@@ -788,15 +971,16 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * Request Var:
 	 * 		- id (string)		ID
 	 * Request Parameters:
-	 * 		- type (String): 					Type of actuator				- required
+	 * 		- type (String): 					Type of actuator			- required
+	 * 		- name (String):					Human-readable name			- required
 	 *		- customId (String): 				Custom ID for the driver 	- required
 	 */
 	function serviceUpdateActuator(req, resp) {
 		logger.info("<Service> UpdateActuator.");
-		var actuatorData = parseRequest(req, ['id', 'type', 'customId']);
+		var actuatorData = parseRequest(req, ['id', 'type', 'customId', 'name']);
 		
 		writeHeaders(resp);
-		updateActuator(actuatorData.id, actuatorData.type, actuatorData.customId, function(err, bool) {
+		updateActuator(actuatorData.id, actuatorData.type, actuatorData.name, actuatorData.customId, function(err, bool) {
 			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
@@ -835,6 +1019,44 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		
 		writeHeaders(resp);
 		updateActuatorType(actuatorData.id, actuatorData.type, function(err, bool) {
+			if (err) { error(2, resp, err); return; }
+			if (!bool) error(2, resp);
+			else resp.end(JSON.stringify({ status: 'ok' })); 
+		});
+	}
+		
+	/**
+	 * updateActuatorName
+	 * ====
+	 * Update the name of the Actuator corresponding to the given id
+	 * Parameters:
+	 *	- id (String): 				ID
+	 *	- name (String): 			Name to change
+	 *	- cb (Function(bool):		Callback
+	 */ 
+	function updateActuatorName(id, name, cb) {
+			models.Actuator.update({name: name}, {id: id})
+			.success(function() {
+				cb(null, true);
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceUpdateActuatorName
+	 * ====
+	 * Request Var:
+	 * 		- id (string)		ID
+	 * Request Parameters:
+	 *		- name (String): 	Name 		- required
+	 */
+	function serviceUpdateActuatorName(req, resp) {
+		logger.info("<Service> UpdateActuatorName.");
+		var actuatorData = parseRequest(req, ['id', 'name']);
+		
+		writeHeaders(resp);
+		updateActuatorName(actuatorData.id, actuatorData.name, function(err, bool) {
 			if (err) { error(2, resp, err); return; }
 			if (!bool) error(2, resp);
 			else resp.end(JSON.stringify({ status: 'ok' })); 
@@ -1493,6 +1715,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 				cb(err, null);
 			});
 	}
+	
 	/**
 	 * serviceCreateRule
 	 * ====
@@ -1508,6 +1731,80 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		
 		writeHeaders(resp);
 		createRule(ruleData.name, function(err, id) {
+			if (err) { error(10, resp, err); return; }
+			resp.end(JSON.stringify({ status: 'ok', id: id }));
+		});
+	}
+	
+	/**
+	 * createSimpleRule
+	 * ====
+	 * Add a rule to the DB and system, binding only 1 sensor to 1 actuator
+	 * Parameters:
+	 *	- name (String): 					Name of the rule
+	 *	- measureType (String): 			Type of measure concerned
+	 *	- intervalStart (float): 			Smallest Value concerned
+	 *	- intervalEnd (float): 				Biggest Value concerned
+	 *	- value (float): 					Value to send to the actuator
+	 *	- isActive (bool): 					IsActive Flag
+	 *	- cb (Function(Erreur, int)):		Callback
+	 */
+	function createSimpleRule(name, measureType, intervalStart, intervalEnd, cb) {
+		models.Rule.create({ name: name })
+			.success(function(rule) {
+				models.SensorRule.create({ measureType: measureType, intervalStart: intervalStart, intervalEnd: intervalEnd })
+					.success(function(sensorRule) {
+						sensor.addSensorRule(sensorRule)
+							.success(function() {
+								models.ActuatorRule.create({ value: value, isActive: isActive })
+									.success(function(actuatorRule) {
+										actuator.addActuatorRule(actuatorRule)
+											.success(function() { cb(null, rule.id); })
+											.error(function(err) {
+												actuatorRule.destroy().success(function() {
+													cb(err, null);
+												})
+											});
+									})
+									.error(function(err) {
+										cb(err, null);
+									});
+							})
+							.error(function(err) {
+								sensorRule.destroy().success(function() {
+									cb(err, null);
+								})
+							});
+					})
+					.error(function(err) {
+						cb(err, null);
+					});
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	
+	/**
+	 * serviceCreateSimpleRule
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 * 		- name (String): 			Name of the rule				- required
+	 *		- measureType (String): 	Type of measure concerned		- required
+	 *		- intervalStart (float): 	Smallest Value concerned		- required
+	 *		- intervalEnd (float): 		Biggest Value concerned			- required
+	 *		- value (float): 			Value to send to the actuator	- required
+	 *		- isActive (bool): 			IsActive Flag					- required
+	 *		- customId (String): 		Custom ID for the driver 		- required
+	 */
+	function serviceCreateSimpleRule(req, resp) {
+		logger.info("<Service> CreateSimpleRule.");
+		var ruleData = parseRequest(req, ['name', 'measureType', 'intervalStart', 'intervalEnd', 'value', 'isActive', ]);
+		
+		writeHeaders(resp);
+		createSimpleRule(ruleData.name, ruleData.measureType, ruleData.intervalStart, ruleData.intervalEnd, ruleData.value, ruleData.isActive, function(err, id) {
 			if (err) { error(10, resp, err); return; }
 			resp.end(JSON.stringify({ status: 'ok', id: id }));
 		});
@@ -1768,7 +2065,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 				if (!rule) { cb('Rule doesn\'t exist', null); return; }
 				models.SensorRule.create({ measureType: measureType, intervalStart: intervalStart, intervalEnd: intervalEnd })
 					.success(function(sensorRule) {
-						sensor.addMeasure(sensorRule)
+						sensor.addSensorRule(sensorRule)
 							.success(function() { cb(null, sensorRule.id); })
 							.error(function(err) {
 								sensorRule.destroy().success(function() {
@@ -2291,7 +2588,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 				if (!rule) { cb('Rule doesn\'t exist', null); return; }
 				models.ActuatorRule.create({ value: value, isActive: isActive })
 					.success(function(actuatorRule) {
-						actuator.addMeasure(actuatorRule)
+						actuator.addActuatorRule(actuatorRule)
 							.success(function() { cb(null, actuatorRule.id); })
 							.error(function(err) {
 								actuatorRule.destroy().success(function() {
@@ -2717,7 +3014,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 	  	 
 	/*
 	 * ------------------------------------------
-	 * ROUTING
+	 * REST ROUTING
 	 * ------------------------------------------
 	 */
 	 
@@ -2737,6 +3034,10 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	this.rest['sensor/:id/type'] = {
 		'GET'	: serviceGetSensorType,
 		'PUT'	: serviceUpdateSensorType
+	};
+	this.rest['sensor/:id/name'] = {
+		'GET'	: serviceGetSensorName,
+		'PUT'	: serviceUpdateSensorName
 	};
 	this.rest['sensor/:id/customId'] = {
 		'GET'	: serviceGetSensorCustomId,
@@ -2758,6 +3059,10 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	this.rest['actuator/:id/type'] = {
 		'GET'	: serviceGetActuatorType,
 		'PUT'	: serviceUpdateActuatorType
+	};
+	this.rest['actuator/:id/name'] = {
+		'GET'	: serviceGetActuatorName,
+		'PUT'	: serviceUpdateActuatorName
 	};
 	this.rest['actuator/:id/customId'] = {
 		'GET'	: serviceGetActuatorCustomId,
@@ -2803,6 +3108,11 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		'POST'	: serviceCreateRule,
 		'GET'	: serviceGetRules
 	};
+	
+	this.rest['simpleRules'] = {
+		'POST'	: serviceCreateSimpleRule
+	};
+	
 	this.rest['rules/offset/:offset'] = this.rest['rules/offset/:offset/limit/:limit'] = {
 		'GET'	: serviceGetRules
 	};
@@ -2874,5 +3184,17 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 		'GET'	: serviceGetActuatorRuleRule
 	};
 
+	 
+	 	  	 
+	/*
+	 * ------------------------------------------
+	 * LOCAL EXPORTS
+	 * ------------------------------------------
+	 */
+	 
+	 this.local = {};
+	 this.local.loadDevices = loadDevices;
+	 
+	 
 	return this;
 };

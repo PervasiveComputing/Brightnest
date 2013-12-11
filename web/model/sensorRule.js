@@ -8,7 +8,7 @@
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define('SensorRule',
       { measureType: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.STRING(32),
             validate: {
                 notEmpty: { msg: "Field measureType cannot be empty" },
                 notNull: { msg: "Field measureType cannot be null" }
