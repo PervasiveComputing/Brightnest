@@ -20,7 +20,7 @@ var numSunSpots = 0;
  *  - serverUrl (String):       Direction of the machine where the main server is running
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
-function add(customId, baseStationUrl, cb) {
+function add(customDeviceId, cb) {
 	//Get the public ip of our server
 	var opt = {
 			host : 'icanhazip.com',
@@ -35,8 +35,6 @@ function add(customId, baseStationUrl, cb) {
 		});
 
 		response.on('end', function(){
-			console.log(ip);
-
 		});
 
 		request.on('error', function(e) {
@@ -45,23 +43,27 @@ function add(customId, baseStationUrl, cb) {
 	});
 	ipRequest.end();
 
-	if(a.indexOf(customId) < 0){
-		baseStationAddr = baseStationUrl;
+	//Register request to the base station
+	var deviceInfo = customDeviceId.split('+');
+	customId = deviceInfo[0];
+	baseAddr = deviceInfo[1];
+	if(sunspots.indexOf(customDeviceId) < 0){
+		baseStationAddr = baseAddr;
 		serverUrl = publicIp+":"+config.getProperty("http.port");
 		var options = {
 				host : baseStationUrl,
 				port: 8000,
-				path : '/register/sensor/?id=customId&status=registered&url=http://'+serverUrl+'/api/measures&port=8080',
+				path : '/register/sensor/?id='+customId+'&status=registered&url=http://'+serverUrl+'/api/measures&port=8080',
 				method : 'GET'
 			}
-		var data;
+		var data = "";
 		var request = http.request(options, function(response){
 			 
 			response.on('data', function(chunk){
 			});
 
 			response.on('end', function(){
-				a.splice(numSunSpots, 1, customId);
+				sunspots.splice(numSunSpots, 0, customDeviceId);
 				numSunSpots++;
 
 			});
@@ -87,7 +89,45 @@ function add(customId, baseStationUrl, cb) {
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
 function update(prevCustomId, newCustomId, cb) {
-	// TO DO
+	
+	if(sunspots.indexOf(prevCustomId) > 0){
+
+		var oldDeviceInfo = prevCustomId.split('+');
+		oldCustomId = oldDeviceInfo[0];
+		oldBaseAddr = oldDeviceInfo[1];
+
+		var newDeviceInfo = newCustomId.split('+');
+		customId = newDeviceInfo[0];
+		baseAddr = newDeviceInfo[1];
+
+		baseStationAddr = baseAddr;
+
+		var options = {
+				host : baseStationUrl,
+				port: 8000,
+				path : '/update/sensor/?newId='+customId+'&oldId='+oldCustomId,
+				method : 'GET'
+			}
+		var data = "";
+		var request = http.request(options, function(response){
+			 
+			response.on('data', function(chunk){
+			});
+
+			response.on('end', function(){
+				sunspots.splice(sunspots.indexOf(prevCustomId), 1, newCustomId);
+				numSunSpots++;
+
+			});
+
+			request.on('error', function(e) {
+			   cb('Problem with request: ' + e.message);
+		    });
+		});
+		request.end();
+	}else{
+		cb('SunSPOT already installed');
+	}
 	cb(null);
 }
 
@@ -99,22 +139,27 @@ function update(prevCustomId, newCustomId, cb) {
  *	- customId (String):		ID
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
-function remove(customId, cb) {
+function remove(customDeviceId, cb) {
+
+	var deviceInfo = customDeviceId.split('+');
+	customId = deviceInfo[0];
+	baseAddr = deviceInfo[1];
+
 	if(sunspots.indexOf(customId)>=0){
 		var options = {
 			host : baseStationAddr,
 			port: 8000,
-			path : '/unregister/sensor/?id=customId&status=unregistered',
+			path : '/unregister/sensor/?id='customId'&status=unregistered',
 			method : 'GET'
 		}
-		var data;
+		var data = "";
 		var request = http.request(options, function(response){
 
 			response.on('data', function(chunk){
 			});
 
 			response.on('end', function(){
-				a.splice(indexOf(customId), 1);
+				sunspots.splice(indexOf(customId), 1);
 				numSunSpots--;
 
 			});
