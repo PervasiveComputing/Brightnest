@@ -75,8 +75,8 @@ for(var f in sensorsDriversFiles) {
  */
 
 var	models = require('./models')(sequelize),
-	services = require("./services")(models, sensorsDrivers, actuatorsDrivers),
-	views = require("./views");
+	services = require("./services")(models, sensorsDrivers, actuatorsDrivers, sequelize),
+	views = require("./views")(services.local);
 	
 	
 /* ------------------------

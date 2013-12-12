@@ -91,8 +91,13 @@ module.exports = function(localServices) {
 		rules_list[2] = {name: "If the lights value is higher than 10, then change it to 6", id: 3};
 		rules_list[3] = {name: "If the lights value is lower than 2, then change it to 4", id: 4};
 		/***********************************************************************************************************************/
-
-		res.render('behaviours', {title: "Behaviours", rest: rest, sensors_list: sensors_list, actuators_list: actuators_list, rules_list: rules_list});
+		localServices.getSensors(null, null, null, null, function(err, sensors) {
+			localServices.getActuators(null, null, null, null, function(err, actuators) {
+				localServices.getSimpleRules(function(err, simpleRules) {
+					res.render('behaviours', {title: "Behaviours", rest: rest, sensors_list: sensors, actuators_list: actuators, rules_list: simpleRules});
+				});
+			});	
+		});
 	}
 
 	function viewRecords(req,res){
