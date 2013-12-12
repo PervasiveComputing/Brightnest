@@ -5,7 +5,7 @@
 
 	<div class="row">
 		<div class="large-12 columns">
-			<h3>Existing rules:</h3>
+			<h3>Existing rules</h3>
 			<hr />
 			<fieldset>
 				<legend>Rules</legend>
@@ -27,28 +27,58 @@
 
 	<div class="row">
 		<div class="large-12 columns">
-			<h3>Change rules</h3>
+			<h3>New sensors</h3>
+			<hr />
+			<div class="row">
+				<form method='post' action='/api/sensor'>
+			    <div class="large-3 columns">
+			      <label>Mac address</label>
+			      <input type="text" name="customId" placeholder="Mac address of the platform" />
+			    </div>
+			    <div class="large-3 columns">
+			      <label>Base station address</label>
+			      <input type="text" name="baseAddr" placeholder="URL or IP address" />
+			    </div>
+			    <div class="large-3 columns">
+			      <label>Name of the sensor</label>
+			      <input type="text" name="name" placeholder="Type the name of the sensor" />
+			    </div>
+			    <div class="large-3 columns">
+			      <label>Type of the sensor</label>
+			      <input type="text" name="type" placeholder="Type the type of the sensor" />
+			    </div>
+		  	</div>
+
+		  	<button type="submit" class="button tiny success">Add</button>
+          	</form>
+          	<hr />
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="large-12 columns">
+			<h3>New rules</h3>
 			<hr />
 			
 			<div class="row">
 				<div class="large-5 columns">
-					<form method='put' action='/api/rule'>
+					<form method='put' action='/api/simpleRules?isActive=true&customId=1'>
 						<fieldset>
 							<legend>
 								<select name="sensor">
 									<%for(var i in sensors_list){%>
-										<option value="<%=sensors_list[i].name%>"><%=sensors_list[i].name%></option>
+										<option value="<%=sensors_list[i].type%>"><%=sensors_list[i].type%></option>
 									<%}%>
 							    </select>
 							</legend>
 							<label>Type</label>
-							<input type="text" name="measure_type" placeholder="Type of the measure">
+							<input type="text" name="measureType" placeholder="Type of the measure">
 
 							<label>Maximum</label>
-							<input type="text" name="max_value" placeholder="Introduce a value">
+							<input type="text" name="intervalStart" placeholder="Introduce a value">
 
 							<label>Minimum</label>
-							<input type="text" name="min_value" placeholder="Introduce a value">
+							<input type="text" name="intervalEnd" placeholder="Introduce a value">
 
 						</fieldset>
 				</div>
@@ -61,24 +91,31 @@
 								<legend>
 									<select name="actuator">
 										<%for(var i in actuators_list){%>
-											<option value="<%=actuators_list[i].name%>"><%=actuators_list[i].name%></option>
+											<option value="<%=actuators_list[i].type%>"><%=actuators_list[i].name%></option>
 										<%}%>
 								    </select>
 								</legend>
 								<label>Change to</label>
-								<input type="text" name="change_to" placeholder="Introduce a value">
+								<input type="text" name="value" placeholder="Introduce a value">
 
 							</fieldset>
 						</div>
 					</div>
 
-					<div class="row">
-						<div class="large-12 columns">
-							<button type="submit" class="button tiny success">Add rule</button>
-							</form>
-						</div>
+					<div class="row collapse">
+
+						<div class="small-9 columns">
+          					<input type="text" name="name" placeholder="Name of the rule">
+        				</div>
+
+        				<div class="small-2 columns">
+          					<button type="submit" class="button tiny success">Add</button>
+          					</form>
+        				</div>
+
 					</div>
 				</div>
 			</div>
+			<hr />
 		</div>
 	</div>
