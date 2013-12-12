@@ -108,7 +108,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 *	- customId (String): 				Custom ID for the driver
 	 *	- cb (Function(Erreur, int)):		Callback
 	 */
-	function createSensor(type, name, customId, cb) {
+	function createSensor(type, name, customId, baseAddr, cb) {
 		if (sensorsDrivers[type]) { // If this kind of device is supported:
 			// Check if this sensor isn't already added (the combination type + customId should be unique):
 			models.Sensor.findOrCreate({ customId: customId, type: type }, { name: name })
@@ -119,7 +119,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 					}
 					
 					// Let the driver handle the integration of the device to the system:
-					sensorsDrivers[type].add(customId, function(err){
+					sensorsDrivers[type].add(customId, baseAddr, function(err){
 						if (err) { // Cancelling Modif:
 							models.Sensor.destroy({id: sensor.id})
 								.success(function() {
@@ -144,16 +144,17 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * Request Var:
 	 * 		none
 	 * Request Parameters:
-	 * 		- type (String): 					Type of sensor				- required
-	 * 		- name (String): 					Human-readable name			- required
-	 *		- customId (String): 				Custom ID for the driver 	- required
+	 * 		- type (String): 					Type of sensor				                - required
+	 * 		- name (String): 					Human-readable name			                - required
+	 *		- customId (String): 				Custom ID for the driver 	                - required
+	 *		- baseStationUrl (String): 			Address where the base station is running	- required
 	 */
 	function serviceCreateSensor(req, resp) {
 		logger.info("<Service> CreateSensor.");
-		var sensorData = parseRequest(req, ['type', 'customId', 'name']);
+		var sensorData = parseRequest(req, ['type', 'customId', 'name', 'baseAddr']);
 		
 		writeHeaders(resp);
-		createSensor(sensorData.type, sensorData.name, sensorData.customId, function(err, id) {
+		createSensor(sensorData.type, sensorData.name, sensorData.customId, sensorData.baseAddr, function(err, id) {
 			if (err) { error(10, resp, err); return; }
 			resp.end(JSON.stringify({ status: 'ok', id: id }));
 		});

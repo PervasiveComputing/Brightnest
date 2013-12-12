@@ -4,9 +4,9 @@
  * =================
  * Driver to handle Sunspot
  */
- 
+var config = require("../../config");
+
 var baseStationAddr;
-var serverPublicDNS;
 var sunspots = new Array();
 var numSunSpots = 0;
 
@@ -20,15 +20,38 @@ var numSunSpots = 0;
  *  - serverUrl (String):       Direction of the machine where the main server is running
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
-function add(customId, baseStationUrl, serverUrl, cb) {
-	
+function add(customId, baseStationUrl, cb) {
+	//Get the public ip of our server
+	var opt = {
+			host : 'icanhazip.com',
+			path : '/',
+			method : 'GET'
+		}
+	var publicIp = "";
+	var ipRequest = http.request(options, function(response){
+		 
+		response.on('data', function(chunk){
+			ip += chunk;
+		});
+
+		response.on('end', function(){
+			console.log(ip);
+
+		});
+
+		request.on('error', function(e) {
+		   cb('Problem with request: ' + e.message);
+	    });
+	});
+	ipRequest.end();
+
 	if(a.indexOf(customId) < 0){
 		baseStationAddr = baseStationUrl;
-		serverPublicDNS = serverUrl;
+		serverUrl = publicIp+":"+config.getProperty("http.port");
 		var options = {
 				host : baseStationUrl,
 				port: 8000,
-				path : '/register/sensor/?id=customId&status=registered&url=http://'+serverUrl+':8080/api/measures&port=8080',
+				path : '/register/sensor/?id=customId&status=registered&url=http://'+serverUrl+'/api/measures&port=8080',
 				method : 'GET'
 			}
 		var data;
