@@ -184,5 +184,5 @@ logger.warn("HTML Server is listening.");
 
 // Loading the already-added devices:
 services.local.loadDevices(function(err, dev) {
-	logger.error('<Device> ' + dev[i].name + ' (type: ' + dev[i].type + ', customId: ' + dev[i].customId + ') - Error when loading');
+	logger.error('<Device> ' + dev.name + ' (type: ' + dev.type + ', customId: ' + dev.customId + ') - Error when loading');
 });

@@ -3194,6 +3194,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 
 	 this.local = {};
 	 this.local.loadDevices = loadDevices;
+	 this.local.getSensors = getSensors;
+	 this.local.getActuators = getActuators;
 	 
 	 
 	return this;
