@@ -111,7 +111,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	function createSensor(type, name, customId, baseAddr, cb) {
 		if (sensorsDrivers[type]) { // If this kind of device is supported:
 			// Check if this sensor isn't already added (the combination type + customId should be unique):
-			var customDeviceId = customId+baseAddr;
+			var customDeviceId = customId+'+'+baseAddr;
 			models.Sensor.findOrCreate({ customId: customDeviceId, type: type }, { name: name })
 				.success(function(sensor, created) {
 					if (!created) {

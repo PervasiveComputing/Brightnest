@@ -51,7 +51,7 @@ function add(customDeviceId, cb) {
 		baseStationAddr = baseAddr;
 		serverUrl = publicIp+":"+config.getProperty("http.port");
 		var options = {
-				host : baseStationUrl,
+				host : baseStationAddr,
 				port: 8000,
 				path : '/register/sensor/?id='+customId+'&status=registered&url=http://'+serverUrl+'/api/measures&port=8080',
 				method : 'GET'
@@ -103,9 +103,9 @@ function update(prevCustomId, newCustomId, cb) {
 		baseStationAddr = baseAddr;
 
 		var options = {
-				host : baseStationUrl,
+				host : baseStationAddr,
 				port: 8000,
-				path : '/update/sensor/?newId='+customId+'&oldId='+oldCustomId,
+				path : '/update/sensor/?status=updated&newId='+customId+'&oldId='+oldCustomId,
 				method : 'GET'
 			}
 		var data = "";
@@ -116,8 +116,6 @@ function update(prevCustomId, newCustomId, cb) {
 
 			response.on('end', function(){
 				sunspots.splice(sunspots.indexOf(prevCustomId), 1, newCustomId);
-				numSunSpots++;
-
 			});
 
 			request.on('error', function(e) {
@@ -145,11 +143,13 @@ function remove(customDeviceId, cb) {
 	customId = deviceInfo[0];
 	baseAddr = deviceInfo[1];
 
+	baseStationAddr = baseAddr;
+	
 	if(sunspots.indexOf(customId)>=0){
 		var options = {
 			host : baseStationAddr,
 			port: 8000,
-			path : '/unregister/sensor/?id='customId'&status=unregistered',
+			path : '/unregister/sensor/?id='+customId+'&status=unregistered',
 			method : 'GET'
 		}
 		var data = "";
