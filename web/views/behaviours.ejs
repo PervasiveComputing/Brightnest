@@ -37,7 +37,7 @@
 							<legend>
 								<select name="sensor">
 									<%for(var i in sensors_list){%>
-										<option value="<%=sensors_list[i].name%>"><%=sensors_list[i].name%></option>
+										<option value="<%=sensors_list[i]._id%>"><%=sensors_list[i].name%></option>
 									<%}%>
 							    </select>
 							</legend>
@@ -61,7 +61,7 @@
 								<legend>
 									<select name="actuator">
 										<%for(var i in actuators_list){%>
-											<option value="<%=actuators_list[i].name%>"><%=actuators_list[i].name%></option>
+											<option value="<%=actuators_list[i]._id%>"><%=actuators_list[i].name%></option>
 										<%}%>
 								    </select>
 								</legend>

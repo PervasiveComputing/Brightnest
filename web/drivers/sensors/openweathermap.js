@@ -19,28 +19,28 @@
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
 function add(customId, cb) {
-	if (weatherSensors[customId]) { cb('Sensor ' + customId + ' already added'); return; }
-	weatherSensors[customId] = setTimeout(function(){ // Function to fetch data from OpenWeatherMap API:
-		var options = {
-			host : 'api.openweathermap.org',
-			path : '/data/2.5/weather?q='+customId,
-			port : 80,
-			method : 'GET'
-		}
-
-		var request = http.request(options, function(response){
-			var body = ""
-			response.on('data', function(data) {
-				body += data;
-			});
-			response.on('end', function() {
-				res.send(JSON.parse(body));
-			});
-		});
-		request.on('error', function(e) {
-			console.log('Problem with request: ' + e.message);
-		});
-	}, delay, [arg], [...]);
+//	if (weatherSensors[customId]) { cb('Sensor ' + customId + ' already added'); return; }
+//	weatherSensors[customId] = setTimeout(function(){ // Function to fetch data from OpenWeatherMap API:
+//		var options = {
+//			host : 'api.openweathermap.org',
+//			path : '/data/2.5/weather?q='+customId,
+//			port : 80,
+//			method : 'GET'
+//		}
+//
+//		var request = http.request(options, function(response){
+//			var body = ""
+//			response.on('data', function(data) {
+//				body += data;
+//			});
+//			response.on('end', function() {
+//				res.send(JSON.parse(body));
+//			});
+//		});
+//		request.on('error', function(e) {
+//			console.log('Problem with request: ' + e.message);
+//		});
+//	}, delay, [arg], [...]);
 	cb(null);
 }
 

@@ -7,7 +7,7 @@
 
  var logger = require("./logger");
 
-module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
+module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 
 	function error(code, resp, customMsg) {
 		var result = {};
@@ -1742,36 +1742,24 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * Add a rule to the DB and system, binding only 1 sensor to 1 actuator
 	 * Parameters:
 	 *	- name (String): 					Name of the rule
+	 *	- sensorId (String): 				ID of the sensor
 	 *	- measureType (String): 			Type of measure concerned
 	 *	- intervalStart (float): 			Smallest Value concerned
 	 *	- intervalEnd (float): 				Biggest Value concerned
+	 *	- actuatorId (String): 				ID of the actuator
 	 *	- value (float): 					Value to send to the actuator
 	 *	- isActive (bool): 					IsActive Flag
 	 *	- cb (Function(Erreur, int)):		Callback
 	 */
-	function createSimpleRule(name, measureType, intervalStart, intervalEnd, cb) {
+	function createSimpleRule(name, sensorId, measureType, intervalStart, intervalEnd, actuatorId, value, isActive, cb) {
 		models.Rule.create({ name: name })
 			.success(function(rule) {
-				models.SensorRule.create({ measureType: measureType, intervalStart: intervalStart, intervalEnd: intervalEnd })
-					.success(function(sensorRule) {
-						sensor.addSensorRule(sensorRule)
-							.success(function() {
-								models.ActuatorRule.create({ value: value, isActive: isActive })
-									.success(function(actuatorRule) {
-										actuator.addActuatorRule(actuatorRule)
-											.success(function() { cb(null, rule.id); })
-											.error(function(err) {
-												actuatorRule.destroy().success(function() {
-													cb(err, null);
-												})
-											});
-									})
-									.error(function(err) {
-										cb(err, null);
-									});
-							})
+				models.SensorRule.create({ ruleId: rule.id, sensorId: sensorId, measureType: measureType, intervalStart: intervalStart, intervalEnd: intervalEnd })
+					.success(function() {
+						models.ActuatorRule.create({ ruleId: rule.id, actuatorId: actuatorId, value: value, isActive: isActive })
+							.success(function() { cb(null, rule.id); })
 							.error(function(err) {
-								sensorRule.destroy().success(function() {
+								actuatorRule.destroy().success(function() {
 									cb(err, null);
 								})
 							});
@@ -1792,19 +1780,21 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 * 		none
 	 * Request Parameters:
 	 * 		- name (String): 			Name of the rule				- required
+	 *		- sensorId (String): 		ID of the sensor				- required
 	 *		- measureType (String): 	Type of measure concerned		- required
 	 *		- intervalStart (float): 	Smallest Value concerned		- required
 	 *		- intervalEnd (float): 		Biggest Value concerned			- required
+	 *		- actuatorId (String): 		ID of the actuator				- required
 	 *		- value (float): 			Value to send to the actuator	- required
 	 *		- isActive (bool): 			IsActive Flag					- required
 	 *		- customId (String): 		Custom ID for the driver 		- required
 	 */
 	function serviceCreateSimpleRule(req, resp) {
 		logger.info("<Service> CreateSimpleRule.");
-		var ruleData = parseRequest(req, ['name', 'measureType', 'intervalStart', 'intervalEnd', 'value', 'isActive', ]);
+		var ruleData = parseRequest(req, ['name', 'measureType', 'intervalStart', 'intervalEnd', 'value', 'isActive', 'sensorId', 'actuatorId']);
 		
 		writeHeaders(resp);
-		createSimpleRule(ruleData.name, ruleData.measureType, ruleData.intervalStart, ruleData.intervalEnd, ruleData.value, ruleData.isActive, function(err, id) {
+		createSimpleRule(ruleData.name, ruleData.sensorId, ruleData.measureType, ruleData.intervalStart, ruleData.intervalEnd, ruleData.actuatorId, ruleData.value, ruleData.isActive, function(err, id) {
 			if (err) { error(10, resp, err); return; }
 			resp.end(JSON.stringify({ status: 'ok', id: id }));
 		});
@@ -1854,9 +1844,43 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ rules: rules })); 
 		});
+	}
+	 
+	/**
+	 * getSimpleRules
+	 * ====
+	 * Returns a list of simple rules.
+	 * Parameters:
+	 *	- cb (Function(err, Rule[])):	Callback
+	 */
+	function getSimpleRules(cb) {
+		sequelize.query(
+			'SELECT Rules.name, Rules.id, SensorRules.sensorId, SensorRules.measureType, SensorRules.intervalStart, SensorRules.intervalEnd, ActuatorRules.actuatorId, ActuatorRules.value, ActuatorRules.isActive '+
+			'FROM Rules, SensorRules, ActuatorRules '+
+			'WHERE SensorRules.ruleId = Rules.id AND ActuatorRules.ruleId = Rules.id', null, { raw: true })
+			.success(function(ans){cb(null, ans);})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	/**
+	 * serviceGetSimpleRules
+	 * ====
+	 * Request Var:
+	 * 		none
+	 * Request Parameters:
+	 * 		none
+	 */
+	function serviceGetSimpleRules(req, resp) {
+		logger.info("<Service> GetSimpleRules.");
+		
+		writeHeaders(resp);
+		getSimpleRules(function(err, rules) {
+			if (err) { error(2, resp, err); return; }
+			resp.end(JSON.stringify({ rules: rules })); 
+		});
 	}	
 	 
-
 	/*
 	 * ------------------------------------------
 	 * RULE Services
@@ -3110,6 +3134,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	};
 	
 	this.rest['simpleRules'] = {
+		'GET'	: serviceGetSimpleRules,
 		'POST'	: serviceCreateSimpleRule
 	};
 	
@@ -3194,6 +3219,9 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers) {
 	 
 	 this.local = {};
 	 this.local.loadDevices = loadDevices;
+	 this.local.getSensors = getSensors;
+	 this.local.getActuators = getActuators;
+	 this.local.getSimpleRules = getSimpleRules;
 	 
 	 
 	return this;
