@@ -24,6 +24,12 @@ module.exports = function(sequelize, DataTypes) {
             validate: {
                 notEmpty: { msg: "Field measureType cannot be empty" }
             }
+        },
+        sensorId: {
+            type: DataTypes.STRING(32),
+            validate: {
+                notEmpty: { msg: "Field measureType cannot be empty" }
+            }
         }
     },
     {timestamps: false});

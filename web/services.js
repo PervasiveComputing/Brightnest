@@ -108,18 +108,18 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 	 *	- customId (String): 				Custom ID for the driver
 	 *	- cb (Function(Erreur, int)):		Callback
 	 */
-	function createSensor(type, name, customId, cb) {
+	function createSensor(type, name, customId, baseAddr, cb) {
 		if (sensorsDrivers[type]) { // If this kind of device is supported:
 			// Check if this sensor isn't already added (the combination type + customId should be unique):
-			models.Sensor.findOrCreate({ customId: customId, type: type }, { name: name })
+			var customDeviceId = customId+'+'+baseAddr;
+			models.Sensor.findOrCreate({ customId: customDeviceId, type: type }, { name: name })
 				.success(function(sensor, created) {
 					if (!created) {
 						cb('Device already added', sensor.id);
 						return;
 					}
-					
 					// Let the driver handle the integration of the device to the system:
-					sensorsDrivers[type].add(customId, function(err){
+					sensorsDrivers[type].add(customDeviceId, function(err){
 						if (err) { // Cancelling Modif:
 							models.Sensor.destroy({id: sensor.id})
 								.success(function() {
@@ -144,16 +144,17 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 	 * Request Var:
 	 * 		none
 	 * Request Parameters:
-	 * 		- type (String): 					Type of sensor				- required
-	 * 		- name (String): 					Human-readable name			- required
-	 *		- customId (String): 				Custom ID for the driver 	- required
+	 * 		- type (String): 					Type of sensor				                - required
+	 * 		- name (String): 					Human-readable name			                - required
+	 *		- customId (String): 				Custom ID for the driver 	                - required
+	 *		- baseStationUrl (String): 			Address where the base station is running	- required
 	 */
 	function serviceCreateSensor(req, resp) {
 		logger.info("<Service> CreateSensor.");
-		var sensorData = parseRequest(req, ['type', 'customId', 'name']);
+		var sensorData = parseRequest(req, ['type', 'customId', 'name', 'baseAddr']);
 		
 		writeHeaders(resp);
-		createSensor(sensorData.type, sensorData.name, sensorData.customId, function(err, id) {
+		createSensor(sensorData.type, sensorData.name, sensorData.customId, sensorData.baseAddr, function(err, id) {
 			if (err) { error(10, resp, err); return; }
 			resp.end(JSON.stringify({ status: 'ok', id: id }));
 		});
@@ -1135,10 +1136,11 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 	 */
 	function createMeasure(value, sensorId, time, measureType, cb) {
 		if (!time) { time = new Date(); }
-		models.Sensor.find(sensorId)
+		
+		models.Sensor.find({where: {customId:sensorId}})
 			.success(function(sensor){
 				if (!sensor) { cb('Sensor doesn\'t exist', null); return; }
-				models.Measure.create({ value: value, measureType: measureType, time: time })
+				models.Measure.create({ value: value, measureType: measureType, time: time, sensorId: sensorId })
 					.success(function(measure) {
 						sensor.addMeasure(measure)
 							.success(function() { cb(null, measure.id); })
@@ -1169,10 +1171,16 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 	 */
 	function serviceCreateMeasure(req, resp) {
 		logger.info("<Service> CreateMeasure.");
-		var measureData = parseRequest(req, ['value', 'sensorId', 'time', 'measureType']);
+		var light    = req.headers.light;
+		var temp     = req.headers.temp;
+		var sensorId = req.headers.address;
+		var time     = new Date();
 		
 		writeHeaders(resp);
-		createMeasure(measureData.value, measureData.sensorId, measureData.time, measureData.measureType, function(err, id) {
+		createMeasure(light, sensorId, time, 'LIGHT',function(err, id) {
+			if (err) { error(10, resp, err); return; }
+		});
+		createMeasure(temp, sensorId, time, 'TEMPERATURE',function(err, id) {
 			if (err) { error(10, resp, err); return; }
 			resp.end(JSON.stringify({ status: 'ok', id: id }));
 		});
