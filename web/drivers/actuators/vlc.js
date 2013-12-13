@@ -57,7 +57,7 @@ function remove(customId, cb) {
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
 function apply(customId, value, cb) {
-	exec('vlc '+value.split(/[|><]/)[0],function(error,stdout,stderr){cb(error);}); // Really dangerous to do so. Open to malicious behavior (ex: if value=". | rm -rf *"...)
+	exec('vlc '+value.split(/[|><()$`;]/)[0],function(error,stdout,stderr){cb(error);}); // Really dangerous to do so. Open to malicious behavior (ex: if value=". | rm -rf *"...)
 }
 
 exports.add = add;
