@@ -94,6 +94,129 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 
 	/*
 	 * ------------------------------------------
+	 * INFERENCE ENGINE - Services
+	 * ------------------------------------------
+	 */
+	 
+	 /**
+	 * checkRules
+	 * ====
+	 * Check if a rule should be applied after a new measure has been pushed
+	 * Parameters:
+	 *	- measure (Measure): 				New measure
+	 */
+	function checkRules(measure) {
+		// First we select all the rules which MAY be activated by the new measure:
+		sequelize.query(
+			'SELECT DISTINCT ruleId FROM SensorRules'+
+			' WHERE sensorId = '+ measure.sensorId +
+			' AND measureType = '+ measure.measureType +
+			' AND intervalStart <= '+ measure.value +
+			' AND intervalEnd >= '+ measure.value
+			, null, { raw: true })
+			.success(function(ruleIds) {
+				for (var i in rulesIds) {
+					// A Rule should be activated if all its conditions are met,
+					// ie. if all its SensorRules are validated.
+					// So using the contrapositive, we count the number of non-validated SensorRules and apply the rule iif this equals 0.
+					
+					var subReq = "(SELECT measure FROM Measures WHERE sensorId = r.sensorId AND measureType = r.measureType ORDER BY time DESC LIMIT 1)";
+					
+					var sqlRequest = "";
+					sqlRequest += "SELECT COUNT(*) nbFalse, " + rulesIds[i] + " ruleId FROM (";
+					sqlRequest += "SELECT (r.intervalStart <= " + subReq + " AND " + subReq + " <= r.intervalEnd) AS test, r.ruleId ";
+					sqlRequest += "FROM SensorRules r ";
+					sqlRequest += "WHERE ruleId = " + rulesIds[i];
+					sqlRequest += ") T WHERE T.test = 0";
+					
+					sequelize.query(sqlRequest, null, { raw: true })
+						.success(function(rules) {
+							for(var j in rules) {
+								// So if the conditions are met, we check what must be done,
+								// ie we fetch the corresponding ActuatorRules:
+								if(rules[j].nbFalse == 0) {
+									logger.info("Rule " + rule[j].ruleId + " - Activated");
+									sequelize.query(
+										'SELECT actuatorId, value FROM ActuatorRules'+
+										' WHERE ruleId = ' + rule[j].ruleId
+										, null, { raw: true })
+										.success(function(actuatorRules) {
+											// Finally, we can apply the rules:
+											for(var k in actuatorRules) {
+												applyActuatorValue(actuatorRules[k].actuatorId, null, null, actuatorRules.value, function(err){});
+											}
+										})
+										.error(function(err) {
+											cb(err, null);
+										});
+								}
+							}
+						})
+						.error(function(err) {
+							cb(err, null);
+						});
+				}
+			})
+			.error(function(err) {
+				cb(err, null);
+			});
+	}
+	
+	/**
+	 * applyActuatorValue
+	 * ====
+	 * Send a request to an actuator with a value to apply
+	 * Parameters:
+	 *	- actuatorId (String): 				ID of the actuator
+	 *	- type (String): 					Type of the actuator
+	 *  - customId (String): 				CustomId of the actuator
+	 *  - value (Object): 					Value to apply
+	 *	- cb (Function(Erreur)):			Callback
+	 */
+	function applyActuatorValue(actuatorId, type, customId, value, cb) {
+		if (actuatorsDrivers[type]) { // If this kind of device is supported:
+			sensorsDrivers[type].apply(customId, value, function(err) {
+				if (err) {
+					logger.error('Actuator ' + actuatorId + ' - Couldn\'t apply data '+ JSON.stringify(value) +' : ' + err);
+				}
+				else {
+					logger.error('Actuator ' + actuatorId + ' - Applying data '+ JSON.stringify(value));
+				}
+				cb(err);
+			});
+		}
+	}
+	/**
+	 * serviceApplyActuatorValue
+	 * ====
+	 * Request Var/Parameters:
+	 *		- actuatorId (String): 				ID of the actuator			- required
+	 *		- type (String): 					Type of the actuator		- optional
+	 *		- customId (String): 				CustomId of the actuator	- optional
+	 *  	- value (Object): 					Value to apply				- required
+	 */
+	function serviceApplyActuatorValue(req, resp) {
+		logger.info("<Service> ApplyActuatorValue.");
+		var reqData = parseRequest(req, ['id', 'value', 'type', 'customId']);
+		
+		writeHeaders(resp);
+		if (!reqData.type || !!reqData.customId) {
+			getActuator(reqData.id, function(err, act) {
+				apply(reqData.id, act.type, act.customId, reqData.value, function(err) {
+					if (err) { error(10, resp, err); return; }
+					resp.end(JSON.stringify({ status: 'ok' }));
+				});
+			});	
+		} else {
+			apply(reqData.id, reqData.type, reqData.customId, reqData.value, function(err) {
+				if (err) { error(10, resp, err); return; }
+				resp.end(JSON.stringify({ status: 'ok' }));
+			});
+		}
+	}
+	
+	/*
+	 * ------------------------------------------
 	 * SENSORS - CRUD Services
 	 * ------------------------------------------
 	 */
@@ -1143,7 +1266,12 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 				models.Measure.create({ value: value, measureType: measureType, time: time, sensorId: sensorId })
 					.success(function(measure) {
 						sensor.addMeasure(measure)
-							.success(function() { cb(null, measure.id); })
+							.success(function() {
+								cb(null, measure.id);
+								
+								// Check if this measure activates a rule:
+								checkRules(measure);
+							})
 							.error(function(err) {
 								measure.destroy().success(function() {
 									cb(err, null);
@@ -3099,6 +3227,9 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 	this.rest['actuator/:id/customId'] = {
 		'GET'	: serviceGetActuatorCustomId,
 		'PUT'	: serviceUpdateActuatorCustomId
+	};
+	this.rest['actuator/:id/apply/:value'] = this.rest['actuator/:id/apply'] = {
+		'PUT'	: serviceApplyActuatorValue
 	};
 	
 	this.rest['measures'] = {
