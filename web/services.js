@@ -202,16 +202,20 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 		writeHeaders(resp);
 		if (!reqData.type || !!reqData.customId) {
 			getActuator(reqData.id, function(err, act) {
-				apply(reqData.id, act.type, act.customId, reqData.value, function(err) {
+				if (actuatorsDrivers[act.type]) {
+					actuatorsDrivers[act.type].apply(act.customId, reqData.value, function(err) {
+						if (err) { error(10, resp, err); return; }
+						resp.end(JSON.stringify({ status: 'ok' }));
+					});
+				}
+			});	
+		} else {
+			if (actuatorsDrivers[reqData.type]) {
+				actuatorsDrivers[reqData.type].apply(reqData.customId, reqData.value, function(err) {
 					if (err) { error(10, resp, err); return; }
 					resp.end(JSON.stringify({ status: 'ok' }));
 				});
-			});	
-		} else {
-			apply(reqData.id, reqData.type, reqData.customId, reqData.value, function(err) {
-				if (err) { error(10, resp, err); return; }
-				resp.end(JSON.stringify({ status: 'ok' }));
-			});
+			}
 		}
 	}
 	
@@ -839,10 +843,10 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 	 */
 	function serviceGetActuators(req, resp) {
 		logger.info("<Service> GetActuators.");
-		var getData = parseRequest(req, ['limit', 'offset']);
+		var getData = parseRequest(req, ['limit', 'offset', 'type', 'customId']);
 		
 		writeHeaders(resp);
-		getActuators(getData.limit, getData.offset, function(err, actuators) {
+		getActuators(getData.type, getData.customId, getData.limit, getData.offset, function(err, actuators) {
 			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ actuators: actuators })); 
 		});
