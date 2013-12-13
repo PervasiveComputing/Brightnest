@@ -4,7 +4,8 @@
  * =================
  * Driver to handle VLC media player as an actuator
  */
- var exec = require('child_process').exec;
+ var exec = require('child_process').exec,
+	logger = require("../../logger");
 
 /**
  * add
@@ -57,7 +58,10 @@ function remove(customId, cb) {
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
 function apply(customId, value, cb) {
-	exec('vlc '+value.split(/[|><]/)[0],function(error,stdout,stderr){cb(error);}); // Really dangerous to do so. Open to malicious behavior (ex: if value=". | rm -rf *"...)
+	var cmd = 'vlc '+value.split(/[|><]/)[0] + ' & exit';
+	logger.debug(cmd);
+	exec(cmd,function(error,stdout,stderr){}); // Really dangerous to do so. Open to malicious behavior (ex: if value=". | rm -rf *"...)
+	cb();
 }
 
 exports.add = add;
