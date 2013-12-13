@@ -5,6 +5,7 @@
  * Driver to handle Sunspot
  */
 var config = require("../../config");
+var http = require('http');
 
 var baseStationAddr;
 var sunspots = new Array();
@@ -22,7 +23,7 @@ var numSunSpots = 0;
  */
 function add(customDeviceId, cb) {
 	//Get the public ip of our server
-	var opt = {
+	/*var opt = {
 			host : 'icanhazip.com',
 			path : '/',
 			method : 'GET'
@@ -41,7 +42,7 @@ function add(customDeviceId, cb) {
 		   cb('Problem with request: ' + e.message);
 	    });
 	});
-	ipRequest.end();
+	ipRequest.end();*/
 
 	//Register request to the base station
 	var deviceInfo = customDeviceId.split('+');
@@ -49,11 +50,11 @@ function add(customDeviceId, cb) {
 	baseAddr = deviceInfo[1];
 	if(sunspots.indexOf(customDeviceId) < 0){
 		baseStationAddr = baseAddr;
-		serverUrl = publicIp+":"+config.getProperty("http.port");
+		//serverUrl = publicIp+":"+config.getProperty("http.port");
 		var options = {
 				host : baseStationAddr,
 				port: 8000,
-				path : '/register/sensor/?id='+customId+'&status=registered&url=http://'+serverUrl+'/api/measures&port=8080',
+				path : '/register/sensor/?id='+customId+'&status=registered',
 				method : 'GET'
 			}
 		var data = "";
