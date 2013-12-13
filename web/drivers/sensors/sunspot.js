@@ -16,34 +16,11 @@ var numSunSpots = 0;
  * ====
  * Add the sensor to the system.
  * Parameters:
- *	- customId (String):		Custom ID of the new device for the driver
- *  - baseStationUrl (String):  Direction of the machine where the base station app is running
- *  - serverUrl (String):       Direction of the machine where the main server is running
+ *	- customDeviceId (String):	Custom ID of the new device for the driver (MAC address + base station IP)
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
 function add(customDeviceId, cb) {
-	//Get the public ip of our server
-	/*var opt = {
-			host : 'icanhazip.com',
-			path : '/',
-			method : 'GET'
-		}
-	var publicIp = "";
-	var ipRequest = http.request(options, function(response){
-		 
-		response.on('data', function(chunk){
-			ip += chunk;
-		});
-
-		response.on('end', function(){
-		});
-
-		request.on('error', function(e) {
-		   cb('Problem with request: ' + e.message);
-	    });
-	});
-	ipRequest.end();*/
-
+	
 	//Register request to the base station
 	var deviceInfo = customDeviceId.split('+');
 	customId = deviceInfo[0];
@@ -54,7 +31,7 @@ function add(customDeviceId, cb) {
 		var options = {
 				host : baseStationAddr,
 				port: 8000,
-				path : '/register/sensor/?id='+customId+'&status=registered',
+				path : '/register/sensor/?id='+customId+'&status=registered'+'&path=/api/measures&port='+config.getProperty("http.port"),
 				method : 'GET'
 			}
 		var data = "";
@@ -135,7 +112,7 @@ function update(prevCustomId, newCustomId, cb) {
  * ====
  * Remove a device.
  * Parameters:
- *	- customId (String):		ID
+ *	- customDeviceId (String):	Custom ID of the new device for the driver (MAC address + base station IP)
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
 function remove(customDeviceId, cb) {
