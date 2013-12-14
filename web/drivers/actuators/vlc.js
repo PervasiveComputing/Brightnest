@@ -58,7 +58,8 @@ function remove(customId, cb) {
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
 function apply(customId, value, cb) {
-	var cmd = 'vlc '+ value.split(/[|><()$`;]/)[0] + ' & exit';
+	//var cmd = 'vlc '+ value.split(/[|><()$`;]/)[0] + ' & exit'; Nice but limit the filenames
+	var cmd = 'vlc '+ value.split(/[|><$`]/)[0] + ' & exit';
 	logger.debug(cmd);
 	exec(cmd,function(error,stdout,stderr){}); // Really dangerous to do so. Open to malicious behavior (ex: if value=". | rm -rf *"...)
 	cb();
