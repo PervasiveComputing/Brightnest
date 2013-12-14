@@ -230,7 +230,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 		var reqData = parseRequest(req, ['id', 'value', 'type', 'customId']);
 		
 		writeHeaders(resp);
-		actuatorsDrivers[reqData.type].apply(reqData.customId, reqData.value, function(err) {
+		applyActuatorValue(reqData.id, reqData.type, reqData.customId, reqData.value, function(err) {
 			if (err) { error(10, resp, err); return; }
 			resp.end(JSON.stringify({ status: 'ok' }));
 		});
@@ -1423,7 +1423,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 		var getData = parseRequest(req, ['sensorId', 'date']);
 		
 		writeHeaders(resp);
-		getRecentMeasuresPerSensor(getData.sensorId, getData.date, function (err, measures) {
+		getRecentMeasuresPerSensor(getData.sensorId, new Date(getData.date), function (err, measures) {
 			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ measures: measures })); 
 		});
