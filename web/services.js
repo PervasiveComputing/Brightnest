@@ -68,7 +68,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 		models.Sensor.findAll()
 			.success(function(sensors){
 				for (var i = 0; i < sensors.length; i++) {
-					sensorsDrivers[sensors[i].type].add(sensors[i].customId, function(err){
+					sensorsDrivers[sensors[i].type].add(sensors[i].customId, sensors[i].id, function(err){
 						if (err) { cb(err, sensors[i]); }
 						else { logger.info('<Sensor> ' + sensors[i].name + ' (type: ' + sensors[i].type + ', customId: ' + sensors[i].customId + ') - Ready'); }
 					});
@@ -110,23 +110,24 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 		sequelize.query(
 			'SELECT DISTINCT ruleId FROM SensorRules'+
 			' WHERE sensorId = '+ measure.sensorId +
-			' AND measureType = '+ measure.measureType +
+			' AND measureType = "'+ measure.measureType + '"'+
 			' AND intervalStart <= '+ measure.value +
 			' AND intervalEnd >= '+ measure.value
 			, null, { raw: true })
 			.success(function(ruleIds) {
-				for (var i in rulesIds) {
+				logger.debug(JSON.stringify(ruleIds));
+				for (var i in ruleIds) {
 					// A Rule should be activated if all its conditions are met,
 					// ie. if all its SensorRules are validated.
 					// So using the contrapositive, we count the number of non-validated SensorRules and apply the rule iif this equals 0.
 					
-					var subReq = "(SELECT measure FROM Measures WHERE sensorId = r.sensorId AND measureType = r.measureType ORDER BY time DESC LIMIT 1)";
+					var subReq = "(SELECT value FROM Measures WHERE sensorId = r.sensorId AND measureType = r.measureType ORDER BY time DESC LIMIT 1)";
 					
 					var sqlRequest = "";
-					sqlRequest += "SELECT COUNT(*) nbFalse, " + rulesIds[i] + " ruleId FROM (";
+					sqlRequest += "SELECT COUNT(*) nbFalse, " + ruleIds[i].ruleId + " ruleId FROM (";
 					sqlRequest += "SELECT (r.intervalStart <= " + subReq + " AND " + subReq + " <= r.intervalEnd) AS test, r.ruleId ";
 					sqlRequest += "FROM SensorRules r ";
-					sqlRequest += "WHERE ruleId = " + rulesIds[i];
+					sqlRequest += "WHERE ruleId = " + ruleIds[i].ruleId;
 					sqlRequest += ") T WHERE T.test = 0";
 					
 					sequelize.query(sqlRequest, null, { raw: true })
@@ -135,30 +136,31 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 								// So if the conditions are met, we check what must be done,
 								// ie we fetch the corresponding ActuatorRules:
 								if(rules[j].nbFalse == 0) {
-									logger.info("Rule " + rule[j].ruleId + " - Activated");
+									logger.info("Rule " + rules[j].ruleId + " - Activated");
 									sequelize.query(
 										'SELECT actuatorId, value FROM ActuatorRules'+
-										' WHERE ruleId = ' + rule[j].ruleId
+										' WHERE ruleId = ' + rules[j].ruleId
 										, null, { raw: true })
 										.success(function(actuatorRules) {
+											logger.debug(JSON.stringify(actuatorRules));
 											// Finally, we can apply the rules:
 											for(var k in actuatorRules) {
-												applyActuatorValue(actuatorRules[k].actuatorId, null, null, actuatorRules.value, function(err){});
+												applyActuatorValue(actuatorRules[k].actuatorId, null, null, actuatorRules[k].value, function(err){});
 											}
 										})
 										.error(function(err) {
-											cb(err, null);
+											logger.error('<Inference Engine> Error: ' + err);
 										});
 								}
 							}
 						})
 						.error(function(err) {
-							cb(err, null);
+							logger.error('<Inference Engine> Error: ' + err);
 						});
 				}
 			})
 			.error(function(err) {
-				cb(err, null);
+				logger.error('<Inference Engine> Error: ' + err);
 			});
 	}
 	
@@ -180,10 +182,38 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 					logger.error('Actuator ' + actuatorId + ' - Couldn\'t apply data '+ JSON.stringify(value) +' : ' + err);
 				}
 				else {
-					logger.error('Actuator ' + actuatorId + ' - Applying data '+ JSON.stringify(value));
+					logger.info('Actuator ' + actuatorId + ' - Applying data '+ JSON.stringify(value));
 				}
 				cb(err);
 			});
+		}
+		
+		if (!type || !customId) {
+			getActuator(actuatorId, function(err, act) {
+				if (actuatorsDrivers[act.type]) {
+					actuatorsDrivers[act.type].apply(act.customId, value, function(err) {
+						if (err) {
+							logger.error('Actuator ' + actuatorId + ' - Couldn\'t apply data '+ JSON.stringify(value) +' : ' + err);
+						}
+						else {
+							logger.info('Actuator ' + actuatorId + ' - Applying data '+ JSON.stringify(value));
+						}
+						cb(err);
+					});
+				}
+			});	
+		} else {
+			if (actuatorsDrivers[type]) {
+				actuatorsDrivers[type].apply(customId, value, function(err) {
+					if (err) {
+						logger.error('Actuator ' + actuatorId + ' - Couldn\'t apply data '+ JSON.stringify(value) +' : ' + err);
+					}
+					else {
+						logger.info('Actuator ' + actuatorId + ' - Applying data '+ JSON.stringify(value));
+					}
+					cb(err);
+				});
+			}
 		}
 	}
 	/**
@@ -200,23 +230,10 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 		var reqData = parseRequest(req, ['id', 'value', 'type', 'customId']);
 		
 		writeHeaders(resp);
-		if (!reqData.type || !!reqData.customId) {
-			getActuator(reqData.id, function(err, act) {
-				if (actuatorsDrivers[act.type]) {
-					actuatorsDrivers[act.type].apply(act.customId, reqData.value, function(err) {
-						if (err) { error(10, resp, err); return; }
-						resp.end(JSON.stringify({ status: 'ok' }));
-					});
-				}
-			});	
-		} else {
-			if (actuatorsDrivers[reqData.type]) {
-				actuatorsDrivers[reqData.type].apply(reqData.customId, reqData.value, function(err) {
-					if (err) { error(10, resp, err); return; }
-					resp.end(JSON.stringify({ status: 'ok' }));
-				});
-			}
-		}
+		actuatorsDrivers[reqData.type].apply(reqData.customId, reqData.value, function(err) {
+			if (err) { error(10, resp, err); return; }
+			resp.end(JSON.stringify({ status: 'ok' }));
+		});
 	}
 	
 	/*
@@ -237,16 +254,16 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 	 */
 	function createSensor(type, name, customId, baseAddr, cb) {
 		if (sensorsDrivers[type]) { // If this kind of device is supported:
+			if(baseAddr) { customId += '+'+baseAddr; }
 			// Check if this sensor isn't already added (the combination type + customId should be unique):
-			var customDeviceId = customId+'+'+baseAddr;
-			models.Sensor.findOrCreate({ customId: customDeviceId, type: type }, { name: name })
+			models.Sensor.findOrCreate({ customId: customId, type: type }, { name: name })
 				.success(function(sensor, created) {
 					if (!created) {
 						cb('Device already added', sensor.id);
 						return;
 					}
 					// Let the driver handle the integration of the device to the system:
-					sensorsDrivers[type].add(customDeviceId, function(err){
+					sensorsDrivers[type].add(customId, sensor.id, function(err){
 						if (err) { // Cancelling Modif:
 							models.Sensor.destroy({id: sensor.id})
 								.success(function() {
@@ -513,7 +530,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 						cb(null, true);
 					})
 					.error(function(err1) { // Cancelling Modif:
-						sensorsDrivers[prevSensor.type].add(prevSensor.customId, function(err2){
+						sensorsDrivers[prevSensor.type].add(prevSensor.customId, id, function(err2){
 							if (err2) {
 								cb('Device removed from system but not DB. Contact Admin', null);
 								return;
@@ -1264,7 +1281,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 	function createMeasure(value, sensorId, time, measureType, cb) {
 		if (!time) { time = new Date(); }
 		
-		models.Sensor.find({where: {customId:sensorId}})
+		models.Sensor.find(sensorId)
 			.success(function(sensor){
 				if (!sensor) { cb('Sensor doesn\'t exist', null); return; }
 				models.Measure.create({ value: value, measureType: measureType, time: time, sensorId: sensorId })
@@ -1303,6 +1320,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 	 */
 	function serviceCreateMeasure(req, resp) {
 		logger.info("<Service> CreateMeasure.");
+		
+		/* TO DO - Adapt Sunspot so they behave like the other sensors.
 		var light    = req.headers.light;
 		var temp     = req.headers.temp;
 		var sensorId = req.headers.address;
@@ -1315,6 +1334,14 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 		createMeasure(temp, sensorId, time, 'TEMPERATURE',function(err, id) {
 			if (err) { error(10, resp, err); return; }
 			resp.end(JSON.stringify({ status: 'ok', id: id }));
+		});
+		*/
+		var measureData = parseRequest(req, ['value', 'sensorId', 'time', 'measureType']);
+                
+		writeHeaders(resp);
+		createMeasure(measureData.value, measureData.sensorId, measureData.time, measureData.measureType, function(err, id) {
+				if (err) { error(10, resp, err); return; }
+				resp.end(JSON.stringify({ status: 'ok', id: id }));
 		});
 	}
 	 
@@ -2108,6 +2135,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 	function deleteRule(id, cb) {
 		models.Rule.destroy({id: id})
 			.success(function() {
+				models.ActuatorRule.destroy({ruleId : id }).success(function() {});
+				models.SensorRule.destroy({ruleId : id }).success(function() {});
 				cb(null, true);
 			})
 			.error(function(err) {

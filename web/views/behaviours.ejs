@@ -27,7 +27,7 @@
 		<div class="large-12 columns">
 			<h3>New Sensor</h3>
 			<hr />
-			<form method="post" id="newSensor" action="/api/actuators">
+			<form method="post" id="newSensor" action="/api/sensors">
 				<div class="row">
 					<div class="large-4 columns">
 					  <label>Device ID</label>
@@ -94,10 +94,10 @@
 							<label>Type</label>
 							<input type="text" name="measureType" id="measureType" placeholder="Type of the measure">
 
-							<label>Maximum</label>
+							<label>Minimum</label>
 							<input type="text" name="intervalStart" id="intervalStart" placeholder="Introduce a value">
 
-							<label>Minimum</label>
+							<label>Maximum</label>
 							<input type="text" name="intervalEnd" id="intervalEnd" placeholder="Introduce a value">
 
 						</fieldset>
@@ -155,7 +155,7 @@ $( "#newRule" ).submit(function( event ) {
 		url : 'api/simpleRules',
 		data: {
 			actuatorId: $('#actuator').val(),
-			actuatorId: $('#actuator').val(),
+			sensorId: $('#sensor').val(),
 			value: $('#value').val(),
 			measureType: $('#measureType').val(),
 			intervalStart: $('#intervalStart').val(),
@@ -173,9 +173,9 @@ $( "#newRule" ).submit(function( event ) {
 				}
 				else {
 					$('#modalBody').html('<strong>Success!</strong> Your new rule is now effective.');
-					$('#rulesToDelete').append(
+					var $form = $(
 							'<div class="row">'+
-							'	<form method="delete" action="/api/rule/'+resp.id+'">'+
+							'<form method="delete" class="deleteRule" idRule="'+resp.id+'" action="/api/rule/'+resp.id+'">'+
 							'		<div class="large-7 columns">'+
 							'			<p>'+$('#nameRule').val()+'</p>'+
 							'		</div>'+
@@ -184,8 +184,16 @@ $( "#newRule" ).submit(function( event ) {
 							'		</div>'+
 							'	</form>'+
 							'</div>');
+					$form.submit(function( event ) {
+						function clos() {
+							event.preventDefault();
+							deleteRule(resp.id);
+						}
+						
+						clos();
+					});
+					$('#rulesToDelete').append($form);
 				}
-				$('#modalLabel').html('New Rule');
 			}
 			else {
 				$('#modalBody').html('<strong>Error</strong>: Couldn\'t create the new rule <small>(Error unknown :-/)</small>');
@@ -193,6 +201,7 @@ $( "#newRule" ).submit(function( event ) {
 			$('#modal').foundation('reveal', 'open');
 		},
 		error : function (jqXHR, textStatus, errorThrown) {
+			$('#modalLabel').html('New Rule');
 			$('#modalBody').html('<strong>Error</strong>: Couldn\'t create the new rule <small>(Server Error - ' + textStatus + ', +' + errorThrown + ')</small>');
 			$('#modal').foundation('reveal', 'open');
 		}
@@ -222,7 +231,6 @@ $( "#newSensor" ).submit(function( event ) {
 					$('#modalBody').html('<strong>Success!</strong> Your new actuator is now integrated to your Nest.');
 					$('#actuator').append('<option value="'+resp.id+'">'+$('#nameSensor').val()+'</option>');
 				}
-				$('#modalLabel').html('New Sensor');
 			}
 			else {
 				$('#modalBody').html('<strong>Error</strong>: Couldn\'t create the new actuator <small>(Error unknown :-/)</small>');
@@ -230,6 +238,7 @@ $( "#newSensor" ).submit(function( event ) {
 			$('#modal').foundation('reveal', 'open');
 		},
 		error : function (jqXHR, textStatus, errorThrown) {
+			$('#modalLabel').html('New Sensor');
 			$('#modalBody').html('<strong>Error</strong>: Couldn\'t create the new actuator <small>(Server Error - ' + textStatus + ', +' + errorThrown + ')</small>');
 			$('#modal').foundation('reveal', 'open');
 		}
@@ -259,7 +268,6 @@ $( "#newActuator" ).submit(function( event ) {
 					$('#modalBody').html('<strong>Success!</strong> Your new actuator is now integrated to your Nest.');
 					$('#actuator').append('<option value="'+resp.id+'">'+$('#nameActuator').val()+'</option>');
 				}
-				$('#modalLabel').html('New Actuator');
 			}
 			else {
 				$('#modalBody').html('<strong>Error</strong>: Couldn\'t create the new actuator <small>(Error unknown :-/)</small>');
@@ -267,6 +275,7 @@ $( "#newActuator" ).submit(function( event ) {
 			$('#modal').foundation('reveal', 'open');
 		},
 		error : function (jqXHR, textStatus, errorThrown) {
+			$('#modalLabel').html('New Actuator');
 			$('#modalBody').html('<strong>Error</strong>: Couldn\'t create the new actuator <small>(Server Error - ' + textStatus + ', +' + errorThrown + ')</small>');
 			$('#modal').foundation('reveal', 'open');
 		}
@@ -275,12 +284,15 @@ $( "#newActuator" ).submit(function( event ) {
 
 $( ".deleteRule" ).submit(function( event ) {
 	event.preventDefault();
-	var idRule = $(this).attr('idRule');
+	deleteRule($(this).attr('idRule'));
+});
+
+function deleteRule(idRule) {
 	$.ajax({
 		type : 'DELETE',
 		url : 'api/rule/'+idRule,
 		success : function (html) {
-			$('#modalLabel').html('New Actuator');
+			$('#modalLabel').html('Removing Rule');
 			if (html) {
 				resp = JSON.parse(html);
 				
@@ -292,7 +304,6 @@ $( ".deleteRule" ).submit(function( event ) {
 					$('#modalBody').html('<strong>Success!</strong> This rule has been removed.');
 					$('.deleteRule[idRule="'+idRule+'"]').remove();
 				}
-				$('#modalLabel').html('New Actuator');
 			}
 			else {
 				$('#modalBody').html('<strong>Error</strong>: Couldn\'t remove the rule <small>(Error unknown :-/)</small>');
@@ -300,10 +311,11 @@ $( ".deleteRule" ).submit(function( event ) {
 			$('#modal').foundation('reveal', 'open');
 		},
 		error : function (jqXHR, textStatus, errorThrown) {
+			$('#modalLabel').html('Removing Rule');
 			$('#modalBody').html('<strong>Error</strong>: Couldn\'t remove the rule <small>(Server Error - ' + textStatus + ', +' + errorThrown + ')</small>');
 			$('#modal').foundation('reveal', 'open');
 		}
 	});
-});
+}
 	
 	</script>
