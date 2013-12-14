@@ -1895,17 +1895,21 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 		models.Rule.create({ name: name })
 			.success(function(rule) {
 				models.SensorRule.create({ ruleId: rule.id, sensorId: sensorId, measureType: measureType, intervalStart: intervalStart, intervalEnd: intervalEnd })
-					.success(function() {
+					.success(function(sensorRule) {
 						models.ActuatorRule.create({ ruleId: rule.id, actuatorId: actuatorId, value: value, isActive: isActive })
 							.success(function() { cb(null, rule.id); })
 							.error(function(err) {
-								actuatorRule.destroy().success(function() {
-									cb(err, null);
-								})
+								sensorRule.destroy().success(function() {
+									rule.destroy().success(function() {
+										cb(err, null);
+									});
+								});
 							});
 					})
 					.error(function(err) {
-						cb(err, null);
+						rule.destroy().success(function() {
+							cb(err, null);
+						});
 					});
 			})
 			.error(function(err) {
@@ -1934,7 +1938,7 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 		var ruleData = parseRequest(req, ['name', 'measureType', 'intervalStart', 'intervalEnd', 'value', 'isActive', 'sensorId', 'actuatorId']);
 		
 		writeHeaders(resp);
-		createSimpleRule(ruleData.name, ruleData.sensorId, ruleData.measureType, ruleData.intervalStart, ruleData.intervalEnd, ruleData.actuatorId, ruleData.value, ruleData.isActive, function(err, id) {
+		createSimpleRule(ruleData.name, ruleData.sensorId, ruleData.measureType, ruleData.intervalStart, ruleData.intervalEnd, ruleData.actuatorId, ruleData.value, true, function(err, id) {
 			if (err) { error(10, resp, err); return; }
 			resp.end(JSON.stringify({ status: 'ok', id: id }));
 		});
