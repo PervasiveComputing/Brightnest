@@ -17,11 +17,10 @@ var numSunSpots = 0;
  * Add the sensor to the system.
  * Parameters:
  *	- customId (String):		Custom ID of the new device for the driver
- *  - baseStationUrl (String):  Direction of the machine where the base station app is running
- *  - serverUrl (String):       Direction of the machine where the main server is running
+ *	- dbId (String):			ID of the new device in the DB (to be used to post measures)
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
-function add(customDeviceId, cb) {
+function add(customDeviceId, dbId, cb) {
 	//Get the public ip of our server
 	/*var opt = {
 			host : 'icanhazip.com',
