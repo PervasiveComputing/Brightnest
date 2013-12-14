@@ -133,7 +133,7 @@ function apply(customId, value, cb){
 	var options = {
 		host : hueArray[customId],
 		path : '/api/newdeveloper/groups/0/action',
-		method : 'POST'
+		method : 'PUT',
 	}
 
 	var request = http.request(options, function(response){
@@ -154,6 +154,7 @@ function apply(customId, value, cb){
 	request.on('error', function(e) {
 		cb('Problem with request: ' + e.message);
 	});
+	request.write(value);
 	request.end();
 	cb(null);
 }
