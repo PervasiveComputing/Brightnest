@@ -16,9 +16,10 @@
  * Here, customId should be the name of the city to be watched over.
  * Parameters:
  *	- customId (String):		Custom ID of the new device for the driver
+ *	- dbId (String):			ID of the new device in the DB (to be used to post measures)
  *	- cb (Function(error)):		Callback with an error or *null* as parameter
  */
-function add(customId, cb) {
+function add(customId, dbId, cb) {
 //	if (weatherSensors[customId]) { cb('Sensor ' + customId + ' already added'); return; }
 //	weatherSensors[customId] = setTimeout(function(){ // Function to fetch data from OpenWeatherMap API:
 //		var options = {

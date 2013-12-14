@@ -75,22 +75,6 @@ module.exports = function(localServices) {
 
 	function viewBehaviors(req, res) {
 		logger.debug("<View> Viewing behaviors page.");
-
-		/********************Backend server************************************************************************************/
-		var sensors_list = new Array();
-		sensors_list[0]={name:"Sunspot"};
-		sensors_list[1]={name:"Humidity sensors"};
-
-		var actuators_list = new Array();
-		actuators_list[0]={name:"Actuator lights"};
-		actuators_list[1]={name:"Actuators temperature"};
-
-		var rules_list = new Array();
-		rules_list[0] = {name: "If the temperature is higher than 40 degrees, then change it to 25 degrees", id: 1};
-		rules_list[1] = {name: "If the tempreature is lower than 15 degrees, then change it to 22 degrees", id: 2};
-		rules_list[2] = {name: "If the lights value is higher than 10, then change it to 6", id: 3};
-		rules_list[3] = {name: "If the lights value is lower than 2, then change it to 4", id: 4};
-		/***********************************************************************************************************************/
 		localServices.getSensors(null, null, null, null, function(err, sensors) {
 			localServices.getActuators(null, null, null, null, function(err, actuators) {
 				localServices.getSimpleRules(function(err, simpleRules) {
