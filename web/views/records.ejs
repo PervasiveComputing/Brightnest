@@ -24,8 +24,8 @@
 <script type="text/javascript" src="script/canvasjs-1.3.0/canvasjs.min.js"></script>
 
 <script type="text/javascript">
-var sensors;
-var canvasJSData = [];
+var sensors, timer;
+var pseudoCanvasJSData = [];
 
 $(document).ready(function () {
 	$.ajax({
@@ -34,13 +34,14 @@ $(document).ready(function () {
 			if (html) {
 				sensors = JSON.parse(html).sensors;
 				
-				// Loading data from the 1st retrieved sensor:
-				loadMeasures(sensors[0]);
-				
 				// Adding list to view:
 				for (var i = 0; i < sensors.length; i++) {
-					$('#drop').append('<li><a href="#'+ sensors[i].name +'" onclick="loadMeasures(sensors['+i+']);">'+ sensors[i].name +'</a></li>');
+					sensors[i].timeLastUpdate = new Date(0);
+					$('#drop').append('<li><a href="#'+ sensors[i].name +'" onclick="clearTimeout(timer); loadMeasures(sensors['+i+']);">'+ sensors[i].name +'</a></li>');
 				}
+				
+				// Loading data from the 1st retrieved sensor:
+				loadMeasures(sensors[0]);
 			}
 		}
 	});
@@ -48,32 +49,49 @@ $(document).ready(function () {
   
 function loadMeasures(sensor) {
 	var now = new Date();
+	var url = "api/sensor/"+sensor.id+"/measures/after/"+sensor.timeLastUpdate.getTime();
+	console.log('<Request> GET ' + url);
 	$.ajax({
-		url : "api/sensor/"+sensor._id+"/measures/after/"+sensor.timeLastUpdate,
+		url : url,
 		success : function (html) {
 			if (html) {
-				measures = JSON.parse(html).measures;
-				if (!canvasJSData[sensor._id]) { canvasJSData[sensor._id] = []; }
+				var measures = JSON.parse(html).measures;
+				var sensorId = sensorId;
+				if (!pseudoCanvasJSData[sensorId]) { pseudoCanvasJSData[sensorId] = []; }
 				
 				for (var i = 0; i < measures.length; i++) {
-					if (!canvasJSData[sensor._id][measures[i].type]) {
-						canvasJSData[sensor._id][measures[i].type] = {
-							legendText : measures[i].type,
+					if (!pseudoCanvasJSData[sensorId][measures[i].measureType]) {
+						pseudoCanvasJSData[sensorId][measures[i].measureType] = {
+							legendText : measures[i].measureType,
 							type : 'line',
+							showInLegend: true,
+							label: measures[i].measureType,
 							dataPoints : []
 						};
 					}
-					canvasJSData[sensor._id][measures[i].type].dataPoints.push({x: measures[i].time, y: measures[i].value});
+					pseudoCanvasJSData[sensorId][measures[i].measureType].dataPoints.push({x: new Date(measures[i].time.replace(" ", "T")), y: measures[i].value});
+				}
+				
+				var canvasJSData = [];
+				for (var i in pseudoCanvasJSData[sensorId]) {
+					canvasJSData.push(pseudoCanvasJSData[sensorId][i]);
 				}
 				
 				var chart = new CanvasJS.Chart("chartContainer", {
 						title:{
 							text: sensor.name            
 						},
-						data: canvasJSData[sensor._id]
+						axisX:{
+							title: "Timeline"
+						},
+						axisY:{
+							title: "Values"
+						},
+						data: canvasJSData
 					});
 				chart.render();
 				sensor.timeLastUpdate = now;
+				timer = setTimeout(function(){loadMeasures(sensor);}, 1000);
 			}
 		}
 	});

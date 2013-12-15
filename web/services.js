@@ -1423,7 +1423,8 @@ module.exports = function(models, sensorsDrivers, actuatorsDrivers, sequelize) {
 		var getData = parseRequest(req, ['sensorId', 'date']);
 		
 		writeHeaders(resp);
-		getRecentMeasuresPerSensor(getData.sensorId, new Date(getData.date), function (err, measures) {
+		logger.debug(getData.date);
+		getRecentMeasuresPerSensor(getData.sensorId, new Date(parseInt(getData.date)), function (err, measures) {
 			if (err) { error(2, resp, err); return; }
 			resp.end(JSON.stringify({ measures: measures })); 
 		});
